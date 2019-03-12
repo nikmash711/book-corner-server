@@ -1,0 +1,525 @@
+'use strict';
+
+const express = require('express');
+const mongoose = require('mongoose');
+const cloudinary = require('cloudinary');
+const formData = require('express-form-data');
+const moment = require('moment');
+
+const User = require('../models/user');
+const Media = require('../models/media');
+
+const router = express.Router();
+
+router.use(formData.parse());
+
+/*GET all media in db - just image, title, availability - (all users)*/
+router.get('/allMedia', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return Media.find({}, {'title': 1, 'img': 1, 'available': 1 })
+    .then(allMedia=>{
+      res.json(allMedia);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*GET all checked out media (admin)*/
+router.get('/allCheckedOutMedia', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  //make sure its admin
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        return Media.find({available: false})
+          .populate('checkedOutBy')
+          .populate('holdQueue')
+        ;
+      }
+    })
+    .then(allCheckedOutMedia=>{
+      res.json(allCheckedOutMedia);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*GET all checked out media (specific to user)*/
+router.get('/myCheckedOutMedia', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findById(userId)
+    .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1} })
+    // .populate('currentlyCheckedOut')
+    .then(user=>{
+      let currentlyCheckedOut = user.currentlyCheckedOut;
+      console.log(currentlyCheckedOut);
+      // let {title, img, dueDate} = currentlyCheckedOut;
+      // currentlyCheckedOut = {title, img, dueDate};
+      res.json(currentlyCheckedOut);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*GET all overdue media (admin)*/
+router.get('/allOverdueMedia', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  //make sure its admin
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        let dayNow =  
+        moment().calendar(null, {
+          sameDay: 'MM/DD/YYYY',
+          nextDay: 'MM/DD/YYYY',
+          nextWeek: 'MM/DD/YYYY',
+          lastDay: 'MM/DD/YYYY',
+          lastWeek:'MM/DD/YYYY',
+          sameElse: 'MM/DD/YYYY'
+        });
+        //find media who's due date is less than todays date 
+        return Media.find({dueDate: {$lte: dayNow, $ne:''} })
+          .populate('checkedOutBy')
+          .populate('holdQueue')
+        ;
+      }
+    })
+    .then(allOverDueMedia=>{
+      res.json(allOverDueMedia);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*GET all overdue media (specific to user)*/
+router.get('/myOverdueMedia', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+  let dayNow = moment().format(); 
+
+
+  return User.findById(userId)
+    .populate({ 
+      path: 'currentlyCheckedOut', 
+      select: {'title': 1, 'img': 1, 'dueDate':1},
+      match: { dueDate: {$lte: dayNow, $ne:''} }
+    })
+    .then(user=>{
+      let overdueMedia = user.currentlyCheckedOut;
+      res.json(overdueMedia);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*POST - create a new media (admin)*/
+router.post('/', (req, res, next) => {
+  const userId = req.user.id;
+  const newMedia = req.body;
+  const file = Object.values(req.files);
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  //make sure its admin
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        return cloudinary.uploader.upload(file[0].path);
+      }
+    })
+    .then(cloudinaryResults => {
+      newMedia.img = cloudinaryResults.secure_url;
+      newMedia.available = true;
+      return Media.create(newMedia);
+    })
+    .then(media=>{
+      res.location(`http://${req.headers.host}/media/${media.id}`).status(201).json(media);
+    })
+
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*PUT - checking out media, or returning it (all users) */
+router.put('/availability/:mediaId/:userId', (req, res, next) => {
+  let {mediaId, userId} = req.params; 
+  let {available} = req.body; //booleans denoting if the book is now available, and if there's a holdQueue
+  let media; 
+  let checkedOutBy; 
+  let promise; 
+
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findById(userId)
+    .then(user=>{
+      //if user is checking out media, need to update checkedOutBy and availability AFTER checking to make sure they haven't already checked out more than 2 types of media
+      if(available===false){
+        if(user.currentlyCheckedOut.length===2){
+          const err = new Error('Cannot checkout more than 2 types of media at a time');
+          err.status = 400;
+          throw err;
+        }
+        else{
+          checkedOutBy= userId;
+          promise = Media.findOneAndUpdate({_id: mediaId}, {available, checkedOutBy: checkedOutBy}, {new: true});
+        }
+      }
+      //if media is being returned, change availability, and remove checkedOutBy and dueDate
+      else{
+        promise = Media.findOneAndUpdate({_id: mediaId}, {available, $unset: { checkedOutBy: 1, dueDate: 1, renewals: 1} }, {new: true});
+      }
+      return promise;
+    })
+    .then(updatedMedia=>{
+      media = updatedMedia;
+
+      //if checking out, add it to user's currentlyCheckedOut. 
+      if(!available){
+        console.log('heree')
+        return User.findOneAndUpdate({_id: userId}, {$push: {currentlyCheckedOut: mediaId}}, {new: true});
+      }
+      //if returning, remove it from user's currentlyCheckedOut and add it to checkoutHistory (if not already in there)
+      else{
+        let removeFromCurrentlyCheckedOut = User.findOneAndUpdate({_id: userId}, { $pull: { currentlyCheckedOut: mediaId } }, {new: true});
+        let addToCheckedOutHistory = User.findOneAndUpdate({_id: userId}, { $addToSet: { checkoutHistory: mediaId } }, {new: true});
+        return Promise.all([removeFromCurrentlyCheckedOut, addToCheckedOutHistory]);
+      }
+    })
+    .then(()=>{
+      res.status(200).json(media);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*PUT - media ready for pickup: assign dueDate, clock starts ticking, handles holds (admin) */
+router.put('/pickup/:mediaId', (req, res, next) => {
+  console.log('1');
+
+  const userId = req.user.id;
+  const {mediaId} = req.params;
+  const {holdQueue} = req.body;
+
+  console.log('2');
+
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        let dueDate = moment().add(14, 'days').calendar(null, {
+          sameDay: 'MM/DD/YYYY',
+          nextDay: 'MM/DD/YYYY',
+          nextWeek: 'MM/DD/YYYY',
+          lastDay: 'MM/DD/YYYY',
+          lastWeek:'MM/DD/YYYY',
+          sameElse: 'MM/DD/YYYY'
+        });
+        if(holdQueue){
+          let nextUser = holdQueue[0];
+          //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
+          let promise1 = Media.findOneAndUpdate({_id: mediaId}, {available: false, checkedOutBy: nextUser,  $pull: { holdQueue: nextUser }}, {new: true});
+          //add to users currently checked out and remove it from their mediaOnHold
+          let promise2= User.findOneAndUpdate({_id: nextUser}, {$push: {currentlyCheckedOut: mediaId}, $pull: {mediaOnHold: mediaId}}, {new: true});
+          return Promise.all([promise1, promise2]);
+        }
+        else{
+          return Promise.all([Media.findOneAndUpdate({_id: mediaId}, { $set: {dueDate: dueDate, renewals: 0}}, {new: true})]);
+        }
+      }
+    })
+    .then(([media])=>{
+      res.status(200).json(media);
+    })
+    .catch(err=>{
+      return next(err);
+    });
+});
+
+/*PUT - put media on hold (all users) */
+router.put('/placeHold/:mediaId', (req, res, next) => {
+  const userId = req.user.id;
+  const {mediaId} = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  //make sure theyre not placing an item on hold thats available
+  return Media.findById(mediaId)
+    .then(media=>{
+      if(media.available){
+        const err = new Error('You cannot place a hold on available media');
+        err.status = 400;
+        throw err;         
+      }
+      return User.findById(userId);
+    })
+    .then(user=>{
+      //if this was found, that means they already checked it out or already placed a hold 
+      if(user.currentlyCheckedOut.find(media=>media.toString()===mediaId) || user.mediaOnHold.find(media=>media.toString()===mediaId)){
+        const err = new Error('You cannot place a hold on media that you have currently checked out');
+        err.status = 400;
+        throw err;    
+      }
+
+      //add user to holdQueue, and add media to the users mediaHold
+      let promise1 = Media.findOneAndUpdate({_id: mediaId}, {$push: {holdQueue: userId}}, {new: true});
+      let promise2 = User.findOneAndUpdate({_id: userId}, {$push: {mediaOnHold: mediaId}}, {new: true});
+      return Promise.all([promise1, promise2]);
+    })
+    .then(([media])=>{
+      res.status(200).json(media);
+    })
+    .catch(err=>{
+      return next(err);
+    });
+});
+
+/*PUT - try to renew media (all users) */
+router.put('/renew/:mediaId', (req, res, next) => {
+  const userId = req.user.id;
+  const {mediaId} = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return Media.findById(mediaId)
+    .then((media)=>{
+      if(media.available===true){
+        const err = new Error('This media is not currently checked out and therefore cannot be renewed');
+        err.status = 400;
+        throw err;      
+      }
+      if(media.renewals===1){
+        const err = new Error('Media cannot be renewed, you have exceeded the renewal limit');
+        err.status = 400;
+        throw err;      
+      }
+      else if (media.checkedOutBy.toString()!==userId){
+        const err = new Error('You do not have the authority to renew this media');
+        err.status = 400;
+        throw err;          
+      }
+      else{
+        let dueDate = moment().add(15, 'days').calendar(null, {
+          sameDay: 'MM/DD/YYYY',
+          nextDay: 'MM/DD/YYYY',
+          nextWeek: 'MM/DD/YYYY',
+          lastDay: 'MM/DD/YYYY',
+          lastWeek:'MM/DD/YYYY',
+          sameElse: 'MM/DD/YYYY'
+        });
+        return Media.findOneAndUpdate({_id: mediaId}, {dueDate: dueDate, renewals: 1}, {new: true});
+      }
+    })
+    .then((media)=>{
+      res.status(200).json(media);
+    })
+    .catch(err=>{
+      return next(err);
+    });
+});
+
+/*PUT - edit image of media (admin) */
+router.put('/image/:mediaId', (req, res, next) => {
+  const userId = req.user.id;
+  const {mediaId} = req.params;
+  const file = Object.values(req.files);
+  let img;
+
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        return cloudinary.uploader.upload(file[0].path);
+      }
+    })
+    .then(cloudinaryResults => {
+      img = cloudinaryResults.secure_url;
+      return Media.findOneAndUpdate({_id: mediaId}, {img}, {new: true});
+    })
+    .then((media)=>{
+      res.status(200).json(media);
+    })
+    .catch(err=>{
+      return next(err);
+    });
+});
+
+/*PUT - edit specific details of media (admin) */
+router.put('/details/:mediaId', (req, res, next) => {
+  const userId = req.user.id;
+  const {mediaId} = req.params;
+  const {title, type} = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        return Media.findOneAndUpdate({_id: mediaId}, {title, type}, {new: true});
+      }
+    })
+    .then((media)=>{
+      res.status(200).json(media);
+    })
+    .catch(err=>{
+      return next(err);
+    });
+});
+
+/*DELETE a media (admin)*/
+router.delete('/:mediaId', (req, res, next) => {
+  const userId = req.user.id;
+  const mediaId = req.params.mediaId; 
+
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        return Media.findById(mediaId);
+      }
+    })
+    .then(media=>{
+      //only allow deletion of media if it's not checked out
+      if(media.available){
+        return Media.findOneAndDelete({_id:mediaId});
+      }
+      else{
+        const err = new Error('Cannot delete media, it is currently checked out');
+        err.status = 400;
+        throw err;      
+      }
+    })
+    .then(media=> {
+      if(!media){
+        // if trying to delete something that no longer exists or never did
+        return next();
+      }
+      else{
+        res.sendStatus(204);
+      }
+    })
+    .catch(err => {
+      next(err);
+    });
+});
+
+module.exports = router;
+
+//frontend: 
+//- option to renew should only be there if theres a due date (meaning ready for pickup)
+//- creating media needs: title, type, and image
+// - user can only place hold if a) media is unavailable and b) that user is not the one who has checked out that media c) hasnt placed hold already
+//if a book was returned and theres no hold queue, button says "book returned". if the book was returned and there is a hold queue, button should say "book was returned, ready for next user in hold queue"
+
+//be careful how I  use userId in the routes -- I might be  admin trying to reference user 
+
+//no IDs should be seen in frontend 
