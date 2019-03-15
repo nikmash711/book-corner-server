@@ -90,6 +90,29 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
     });
 });
 
+/*GET all media on hold (specific to user)*/
+router.get('/myMediaOnHold', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findById(userId)
+    .populate({ path: 'onHold', select: {'title': 1, 'img': 1} })
+    .then(user=>{
+      let onHold = user.onHold || [];
+      console.log(onHold);
+      res.json(onHold);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+
 /*GET all overdue media (admin)*/
 router.get('/allOverdueMedia', (req, res, next) => {
   const userId = req.user.id;
@@ -514,12 +537,8 @@ router.delete('/:mediaId', (req, res, next) => {
 
 module.exports = router;
 
-//frontend: 
-//- option to renew should only be there if theres a due date (meaning ready for pickup)
-//- creating media needs: title, type, and image
-// - user can only place hold if a) media is unavailable and b) that user is not the one who has checked out that media c) hasnt placed hold already
-//if a book was returned and theres no hold queue, button says "book returned". if the book was returned and there is a hold queue, button should say "book was returned, ready for next user in hold queue"
-
 //be careful how I  use userId in the routes -- I might be  admin trying to reference user 
+
+//have to figure out balance, email, and texting
 
 //no IDs should be seen in frontend 
