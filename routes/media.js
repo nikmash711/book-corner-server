@@ -111,7 +111,7 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1} })
+    .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1, 'renewals':1} })
     .then(user=>{
       let currentlyCheckedOut = user.currentlyCheckedOut;
       console.log(currentlyCheckedOut);
