@@ -307,13 +307,10 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
 
 /*PUT - media ready for pickup: assign dueDate, clock starts ticking, handles holds (admin) */
 router.put('/pickup/:mediaId', (req, res, next) => {
-  console.log('1');
-
+  console.log('here', req.body);
   const userId = req.user.id;
   const {mediaId} = req.params;
   const {holdQueue} = req.body;
-
-  console.log('2');
 
   if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
     const err = new Error('The `id` is not a valid Mongoose id!');
@@ -338,11 +335,12 @@ router.put('/pickup/:mediaId', (req, res, next) => {
           sameElse: 'MM/DD/YYYY'
         });
         if(holdQueue){
-          let nextUser = holdQueue[0];
+          let nextUser = holdQueue[0].id;
           //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
           let promise1 = Media.findOneAndUpdate({_id: mediaId}, {available: false, checkedOutBy: nextUser,  $pull: { holdQueue: nextUser }}, {new: true});
           //add to users currently checked out and remove it from their mediaOnHold
           let promise2= User.findOneAndUpdate({_id: nextUser}, {$push: {currentlyCheckedOut: mediaId}, $pull: {mediaOnHold: mediaId}}, {new: true});
+          console.log('3', nextUser);
           return Promise.all([promise1, promise2]);
         }
         else{
@@ -351,6 +349,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       }
     })
     .then(([media])=>{
+      console.log('4');
       res.status(200).json(media);
     })
     .catch(err=>{
