@@ -13,6 +13,8 @@ const router = express.Router();
 
 router.use(formData.parse());
 
+const adminEmail = 'jewishbookcorner@gmail.com';
+
 /*GET all media in db - just image, title, availability - (all users)*/
 router.get('/allMedia', (req, res, next) => {
   const userId = req.user.id;
@@ -43,7 +45,7 @@ router.get('/allCheckedOutMedia', (req, res, next) => {
   }
 
   //make sure its admin
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
@@ -76,7 +78,7 @@ router.get('/allRequests', (req, res, next) => {
   }
 
   //make sure its admin
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
@@ -152,7 +154,7 @@ router.get('/allOverdueMedia', (req, res, next) => {
   }
 
   //make sure its admin
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
@@ -211,6 +213,27 @@ router.get('/myOverdueMedia', (req, res, next) => {
     });
 });
 
+/*GET checkout history (specific to user)*/
+router.get('/myCheckoutHistory', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findById(userId)
+    .populate({ path: 'checkoutHistory', select: {'title': 1, 'img': 1} })
+    .then(user=>{
+      let checkoutHistory = user.checkoutHistory;
+      res.json(checkoutHistory);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
 /*POST - create a new media (admin)*/
 router.post('/', (req, res, next) => {
   const userId = req.user.id;
@@ -224,7 +247,7 @@ router.post('/', (req, res, next) => {
   }
 
   //make sure its admin
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
@@ -292,6 +315,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
       }
       //if returning, remove it from user's currentlyCheckedOut and add it to checkoutHistory (if not already in there)
       else{
+        console.log('adding to checkout history')
         let removeFromCurrentlyCheckedOut = User.findOneAndUpdate({_id: userId}, { $pull: { currentlyCheckedOut: mediaId } }, {new: true});
         let addToCheckedOutHistory = User.findOneAndUpdate({_id: userId}, { $addToSet: { checkoutHistory: mediaId } }, {new: true});
         return Promise.all([removeFromCurrentlyCheckedOut, addToCheckedOutHistory]);
@@ -318,7 +342,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
     return next(err);
   }
 
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
@@ -476,7 +500,7 @@ router.put('/image/:mediaId', (req, res, next) => {
     return next(err);
   }
 
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
@@ -511,7 +535,7 @@ router.put('/details/:mediaId', (req, res, next) => {
     return next(err);
   }
 
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
@@ -541,7 +565,7 @@ router.delete('/:mediaId', (req, res, next) => {
     return next(err);
   }
 
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+  return User.findOne({email: adminEmail})
     .then((user)=>{
       if(user._id.toString()!==userId){
         const err = new Error('Unauthorized');
