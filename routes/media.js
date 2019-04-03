@@ -32,7 +32,7 @@ router.get('/allMedia', (req, res, next) => {
     });
 });
 
-/*GET all checked out media (admin)*/
+/*GET all checked out media (has a due date) (admin)*/
 router.get('/allCheckedOutMedia', (req, res, next) => {
   const userId = req.user.id;
 
@@ -51,7 +51,40 @@ router.get('/allCheckedOutMedia', (req, res, next) => {
         throw err;      
       }
       else{
-        return Media.find({available: false})
+        return Media.find({available: false, dueDate: {$exists: true}})
+          .populate('checkedOutBy')
+          .populate('holdQueue')
+        ;
+      }
+    })
+    .then(allCheckedOutMedia=>{
+      res.json(allCheckedOutMedia);
+    })
+    .catch(err=>{
+      next(err);
+    });
+});
+
+/*GET all requests (no due date) (admin)*/
+router.get('/allRequests', (req, res, next) => {
+  const userId = req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  //make sure its admin
+  return User.findOne({email: 'jewishbookcorner@gmail.com'})
+    .then((user)=>{
+      if(user._id.toString()!==userId){
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;      
+      }
+      else{
+        return Media.find({available: false, dueDate: {$exists: false}})
           .populate('checkedOutBy')
           .populate('holdQueue')
         ;
@@ -77,12 +110,9 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
 
   return User.findById(userId)
     .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1} })
-    // .populate('currentlyCheckedOut')
     .then(user=>{
       let currentlyCheckedOut = user.currentlyCheckedOut;
       console.log(currentlyCheckedOut);
-      // let {title, img, dueDate} = currentlyCheckedOut;
-      // currentlyCheckedOut = {title, img, dueDate};
       res.json(currentlyCheckedOut);
     })
     .catch(err=>{
@@ -101,17 +131,15 @@ router.get('/myMediaOnHold', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'onHold', select: {'title': 1, 'img': 1} })
+    .populate({ path: 'mediaOnHold', select: {'title': 1, 'img': 1} })
     .then(user=>{
-      let onHold = user.onHold || [];
-      console.log(onHold);
+      let onHold = user.mediaOnHold || [];
       res.json(onHold);
     })
     .catch(err=>{
       next(err);
     });
 });
-
 
 /*GET all overdue media (admin)*/
 router.get('/allOverdueMedia', (req, res, next) => {
@@ -260,7 +288,6 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
 
       //if checking out, add it to user's currentlyCheckedOut. 
       if(!available){
-        console.log('heree')
         return User.findOneAndUpdate({_id: userId}, {$push: {currentlyCheckedOut: mediaId}}, {new: true});
       }
       //if returning, remove it from user's currentlyCheckedOut and add it to checkoutHistory (if not already in there)
@@ -332,9 +359,9 @@ router.put('/pickup/:mediaId', (req, res, next) => {
 });
 
 /*PUT - put media on hold (all users) */
-router.put('/placeHold/:mediaId', (req, res, next) => {
+router.put('/hold/:mediaId/:action', (req, res, next) => {
   const userId = req.user.id;
-  const {mediaId} = req.params;
+  const {mediaId, action} = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
     const err = new Error('The `id` is not a valid Mongoose id!');
@@ -342,35 +369,51 @@ router.put('/placeHold/:mediaId', (req, res, next) => {
     return next(err);
   }
 
-  //make sure theyre not placing an item on hold thats available
-  return Media.findById(mediaId)
-    .then(media=>{
-      if(media.available){
-        const err = new Error('You cannot place a hold on available media');
-        err.status = 400;
-        throw err;         
-      }
-      return User.findById(userId);
-    })
-    .then(user=>{
-      //if this was found, that means they already checked it out or already placed a hold 
-      if(user.currentlyCheckedOut.find(media=>media.toString()===mediaId) || user.mediaOnHold.find(media=>media.toString()===mediaId)){
-        const err = new Error('You cannot place a hold on media that you have currently checked out');
-        err.status = 400;
-        throw err;    
-      }
+  if(action==='cancel'){
+    //remove user from holdQueue, and remove media from the users mediaHold
+    let promise1 = Media.findOneAndUpdate({_id: mediaId}, {$pull: {holdQueue: userId}}, {new: true});
+    let promise2 = User.findOneAndUpdate({_id: userId}, {$pull: {mediaOnHold: mediaId}}, {new: true});
+    return Promise.all([promise1, promise2])
+      .then(([media])=>{
+        console.log('MEDIA', media)
+        res.status(200).json(media);
+      })
+      .catch(err=>{
+        return next(err);
+      });  
+  }
 
-      //add user to holdQueue, and add media to the users mediaHold
-      let promise1 = Media.findOneAndUpdate({_id: mediaId}, {$push: {holdQueue: userId}}, {new: true});
-      let promise2 = User.findOneAndUpdate({_id: userId}, {$push: {mediaOnHold: mediaId}}, {new: true});
-      return Promise.all([promise1, promise2]);
-    })
-    .then(([media])=>{
-      res.status(200).json(media);
-    })
-    .catch(err=>{
-      return next(err);
-    });
+  else{
+  //make sure theyre not placing an item on hold thats available
+    return Media.findById(mediaId)
+      .then(media=>{
+        if(media.available){
+          const err = new Error('You cannot place a hold on available media');
+          err.status = 400;
+          throw err;         
+        }
+        return User.findById(userId);
+      })
+      .then(user=>{
+      //if this was found, that means they already checked it out or already placed a hold 
+        if(user.currentlyCheckedOut.find(media=>media.toString()===mediaId) || user.mediaOnHold.find(media=>media.toString()===mediaId)){
+          const err = new Error('You cannot place a hold on media that you have currently checked out');
+          err.status = 400;
+          throw err;    
+        }
+
+        //add user to holdQueue, and add media to the users mediaHold
+        let promise1 = Media.findOneAndUpdate({_id: mediaId}, {$push: {holdQueue: userId}}, {new: true});
+        let promise2 = User.findOneAndUpdate({_id: userId}, {$push: {mediaOnHold: mediaId}}, {new: true});
+        return Promise.all([promise1, promise2]);
+      })
+      .then(([media])=>{
+        res.status(200).json(media);
+      })
+      .catch(err=>{
+        return next(err);
+      });
+  }
 });
 
 /*PUT - try to renew media (all users) */
