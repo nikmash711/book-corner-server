@@ -15,6 +15,29 @@ router.use(formData.parse());
 
 const adminEmail = 'jewishbookcorner@gmail.com';
 
+const dayNow =  
+moment().calendar(null, {
+  sameDay: 'MM/DD/YYYY',
+  nextDay: 'MM/DD/YYYY',
+  nextWeek: 'MM/DD/YYYY',
+  lastDay: 'MM/DD/YYYY',
+  lastWeek:'MM/DD/YYYY',
+  sameElse: 'MM/DD/YYYY'
+});
+
+const calculateBalance = (overdueMedia) => {
+  let sum = 0;
+
+  for(let media of overdueMedia){
+    let now = moment(dayNow, 'MM/DD/YYYY');
+    let due = moment(media.dueDate, 'MM/DD/YYYY');
+    //Difference in number of days
+    let diff = moment.duration(now.diff(due)).asDays();
+    sum+=diff;
+  }
+  return sum;
+};
+
 /*GET all media in db - just image, title, availability - (all users)*/
 router.get('/allMedia', (req, res, next) => {
   const userId = req.user.id;
@@ -162,15 +185,6 @@ router.get('/allOverdueMedia', (req, res, next) => {
         throw err;      
       }
       else{
-        let dayNow =  
-        moment().calendar(null, {
-          sameDay: 'MM/DD/YYYY',
-          nextDay: 'MM/DD/YYYY',
-          nextWeek: 'MM/DD/YYYY',
-          lastDay: 'MM/DD/YYYY',
-          lastWeek:'MM/DD/YYYY',
-          sameElse: 'MM/DD/YYYY'
-        });
         //find media who's due date is less than todays date 
         return Media.find({dueDate: {$lte: dayNow, $ne:''} })
           .populate('checkedOutBy')
@@ -189,14 +203,14 @@ router.get('/allOverdueMedia', (req, res, next) => {
 /*GET all overdue media (specific to user)*/
 router.get('/myOverdueMedia', (req, res, next) => {
   const userId = req.user.id;
+  let overdueMedia;
+  let balance;
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     const err = new Error('The `id` is not a valid Mongoose id!');
     err.status = 400;
     return next(err);
   }
-  let dayNow = moment().format(); 
-
 
   return User.findById(userId)
     .populate({ 
@@ -205,8 +219,9 @@ router.get('/myOverdueMedia', (req, res, next) => {
       match: { dueDate: {$lte: dayNow, $ne:''} }
     })
     .then(user=>{
-      let overdueMedia = user.currentlyCheckedOut;
-      res.json(overdueMedia);
+      overdueMedia = user.currentlyCheckedOut;
+      balance = calculateBalance(overdueMedia);
+      res.json({overdueMedia, balance});
     })
     .catch(err=>{
       next(err);
@@ -315,7 +330,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
       }
       //if returning, remove it from user's currentlyCheckedOut and add it to checkoutHistory (if not already in there)
       else{
-        console.log('adding to checkout history')
+        console.log('adding to checkout history');
         let removeFromCurrentlyCheckedOut = User.findOneAndUpdate({_id: userId}, { $pull: { currentlyCheckedOut: mediaId } }, {new: true});
         let addToCheckedOutHistory = User.findOneAndUpdate({_id: userId}, { $addToSet: { checkoutHistory: mediaId } }, {new: true});
         return Promise.all([removeFromCurrentlyCheckedOut, addToCheckedOutHistory]);
@@ -350,7 +365,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
         throw err;      
       }
       else{
-        let dueDate = moment().add(14, 'days').calendar(null, {
+        let dueDate = moment().subtract(14, 'days').calendar(null, {
           sameDay: 'MM/DD/YYYY',
           nextDay: 'MM/DD/YYYY',
           nextWeek: 'MM/DD/YYYY',
@@ -398,7 +413,7 @@ router.put('/hold/:mediaId/:action', (req, res, next) => {
     let promise2 = User.findOneAndUpdate({_id: userId}, {$pull: {mediaOnHold: mediaId}}, {new: true});
     return Promise.all([promise1, promise2])
       .then(([media])=>{
-        console.log('MEDIA', media)
+        console.log('MEDIA', media);
         res.status(200).json(media);
       })
       .catch(err=>{
@@ -468,7 +483,7 @@ router.put('/renew/:mediaId', (req, res, next) => {
         throw err;          
       }
       else{
-        let dueDate = moment().add(15, 'days').calendar(null, {
+        let dueDate = moment().add(14, 'days').calendar(null, {
           sameDay: 'MM/DD/YYYY',
           nextDay: 'MM/DD/YYYY',
           nextWeek: 'MM/DD/YYYY',
@@ -608,3 +623,8 @@ module.exports = router;
 //have to figure out balance, email, and texting
 
 //no IDs should be seen in frontend 
+
+//To calculate balance: 
+//Go through list of overdue books for that user. Grab their due dates. Subtract dayNow- dueDate, and thats how many days late it is and how many dollars they owe.
+
+//If the user is returning something that is overdue, show a red star for Sharon so she knows 
