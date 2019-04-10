@@ -188,7 +188,6 @@ router.get('/allOverdueMedia', (req, res, next) => {
         //find media who's due date is less than todays date 
         return Media.find({dueDate: {$lte: dayNow, $ne:''} })
           .populate('checkedOutBy')
-          .populate('holdQueue')
         ;
       }
     })
