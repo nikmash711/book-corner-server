@@ -38,7 +38,7 @@ const calculateBalance = (overdueMedia) => {
   return sum;
 };
 
-/*GET all media in db - just image, title, availability - (all users)*/
+/*GET all media in db - just image, title, availability, type - (all users)*/
 router.get('/allMedia', (req, res, next) => {
   const userId = req.user.id;
 
@@ -48,7 +48,7 @@ router.get('/allMedia', (req, res, next) => {
     return next(err);
   }
 
-  return Media.find({}, {'title': 1, 'img': 1, 'available': 1 })
+  return Media.find({}, {'title': 1, 'img': 1, 'available': 1, 'type': 1 })
     .then(allMedia=>{
       res.json(allMedia);
     })
@@ -134,7 +134,7 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1, 'renewals':1} })
+    .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1, 'renewals':1, 'type': 1} })
     .then(user=>{
       let currentlyCheckedOut = user.currentlyCheckedOut;
       console.log(currentlyCheckedOut);
@@ -156,7 +156,7 @@ router.get('/myMediaOnHold', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'mediaOnHold', select: {'title': 1, 'img': 1} })
+    .populate({ path: 'mediaOnHold', select: {'title': 1, 'img': 1, 'type': 1} })
     .then(user=>{
       let onHold = user.mediaOnHold || [];
       res.json(onHold);
@@ -215,7 +215,7 @@ router.get('/myOverdueMedia', (req, res, next) => {
   return User.findById(userId)
     .populate({ 
       path: 'currentlyCheckedOut', 
-      select: {'title': 1, 'img': 1, 'dueDate':1},
+      select: {'title': 1, 'img': 1, 'dueDate':1, 'type': 1},
       match: { dueDate: {$lte: dayNow, $ne:''} }
     })
     .then(user=>{
@@ -239,7 +239,7 @@ router.get('/myCheckoutHistory', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'checkoutHistory', select: {'title': 1, 'img': 1} })
+    .populate({ path: 'checkoutHistory', select: {'title': 1, 'img': 1, 'type': 1} })
     .then(user=>{
       let checkoutHistory = user.checkoutHistory;
       res.json(checkoutHistory);
