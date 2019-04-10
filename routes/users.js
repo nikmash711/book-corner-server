@@ -26,6 +26,7 @@ function nonStringField(stringFields, body){
 }
 
 function nonTrimmedField(explicityTrimmedFields, body){
+  console.log('IN FN ', explicityTrimmedFields, body);
   return explicityTrimmedFields.find(
     field => body[field].trim() !== body[field]
   );
