@@ -200,7 +200,7 @@ router.get('/', jwtAuth, (req, res, next) => {
 });
 
 /* EDIT A USER'S BASIC ACCOUNT */
-router.put('/:userId', (req,res,next) => {
+router.put('/account/:userId', jwtAuth, (req,res,next) => {
   const {userId} = req.params;
 
   //First do validation (dont trust client)
@@ -303,5 +303,109 @@ router.put('/:userId', (req,res,next) => {
     });
 });
 
+/* EDIT A USER's PASSWORD */
+router.put('/password/:userId', jwtAuth, (req,res,next) => {
+  const {userId} = req.params;
 
+  //First do validation
+  const requiredFields = ['oldPassword', 'newPassword'];
+  let missing = missingField(requiredFields, req.body);
+
+  if (missing) {
+    const err = {
+      message: `Missing '${missing}' in request body`,
+      reason: 'ValidationError',
+      location: `${missing}`,
+      status: 422
+    };
+    return next(err);
+  }
+
+  const stringFields = ['oldPassword', 'newPassword'];
+  let notString = nonStringField(stringFields, req.body);
+
+  if (notString) {
+    const err = {
+      message: 'Incorrect field type: expected string',
+      reason: 'ValidationError',
+      location: notString,
+      status: 422
+    };
+    return next(err);
+  }
+
+  const explicityTrimmedFields = ['newPassword'];
+  let notTrimmed = nonTrimmedField(explicityTrimmedFields, req.body);
+
+  if (notTrimmed) {
+    const err = {
+      message: 'Cannot start or end with whitespace',
+      reason: 'ValidationError',
+      location: notTrimmed,
+      status: 422
+    };
+    return next(err);
+  }
+
+  const sizedFields = {
+    newPassword: {
+      min: 6,
+      max: 72
+    }
+  };
+
+  let tooSmall = tooSmallField(sizedFields, req.body) ;
+  let tooLarge = tooLargeField(sizedFields, req.body) ;
+
+  if ( tooSmall|| tooLarge) {
+    const message = tooSmall
+      ? `Must be at least ${sizedFields[tooSmall]
+        .min} characters long`
+      : `Must be at most ${sizedFields[tooLarge]
+        .max} characters long`;
+
+    const err = {
+      message: message,
+      reason: 'ValidationError',
+      location: tooSmall || tooLarge,
+      status: 422
+    };
+    return next(err);
+  }
+
+  let {oldPassword, newPassword} = req.body;
+
+  let user;
+
+  User.find({_id: userId})
+    .then(results => {
+      user = results[0];
+      if (!user) {
+        return next();
+      }
+      return user.validatePassword(oldPassword);
+    })
+    .then(isValid => {
+      if (!isValid) {
+        const err = {
+          message: 'Incorrect old password',
+          reason: 'ValidationError',
+          location: 'oldPassword',
+          status: 401
+        };
+        return Promise.reject(err);
+      }
+      return User.hashPassword(newPassword);
+    })
+    .then(digest => {
+      const updatedUser = {password: digest};
+      return User.findOneAndUpdate({_id: userId}, updatedUser, {new: true});
+    })
+    .then(user => {
+      return res.json(user);
+    })
+    .catch(err => {
+      next(err);
+    });
+});
 module.exports = router;
