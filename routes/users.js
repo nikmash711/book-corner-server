@@ -199,4 +199,109 @@ router.get('/', jwtAuth, (req, res, next) => {
     });
 });
 
+/* EDIT A USER'S BASIC ACCOUNT */
+router.put('/:userId', (req,res,next) => {
+  const {userId} = req.params;
+
+  //First do validation (dont trust client)
+  const requiredFields = ['email', 'cell', 'firstName', 'lastName'];
+  let missing= missingField(requiredFields, req.body);
+
+  if (missing) {
+    const err = {
+      message: `Missing '${missing}' in request body`,
+      reason: 'ValidationError',
+      location: `${missing}`,
+      status: 422
+    };
+    return next(err);
+  }
+
+  const stringFields = ['email', 'cell', 'firstName', 'lastName'];
+  let notString= nonStringField(stringFields, req.body);
+
+  if (notString) {
+    const err = {
+      message: 'Incorrect field type: expected string',
+      reason: 'ValidationError',
+      location: notString,
+      status: 422
+    };
+    return next(err);
+  }
+
+  // If the email and password aren't trimmed we give an error.  Users might expect that these will work without trimming. We need to reject such values explicitly so the users know what's happening, rather than silently trimming them and expecting the user to understand.
+  // We'll silently trim the other fields, because they aren't credentials used to log in, so it's less of a problem. QUESTION: where do we actually do
+  const explicityTrimmedFields = ['email'];
+  let notTrimmed = nonTrimmedField(explicityTrimmedFields, req.body);
+
+  if (notTrimmed) {
+    const err = {
+      message: 'Cannot start or end with whitespace',
+      reason: 'ValidationError',
+      location: notTrimmed,
+      status: 422
+    };
+    return next(err);
+  }
+
+  const sizedFields = {
+    email: {
+      min: 1
+    },
+  };
+
+  let tooSmall = tooSmallField(sizedFields, req.body);
+  let tooLarge = tooLargeField(sizedFields, req.body);
+
+  if (tooSmall || tooLarge) {
+    const message = tooSmall
+      ? `Must be at least ${sizedFields[tooSmall]
+        .min} characters long`
+      : `Must be at most ${sizedFields[tooLarge]
+        .max} characters long`;
+
+    const err = {
+      message: message,
+      reason: 'ValidationError',
+      location: tooSmall || tooLarge,
+      status: 422
+    };    
+    return next(err);
+  }
+
+  // // Email and password were validated as pre-trimmed, but we should trim the first and last name
+  let {firstName, lastName, email, cell} = req.body;
+  firstName = firstName.trim();
+  lastName = lastName.trim();
+
+  //capitalize first letter of firt and first letter of last 
+  firstName = capitalizeFirstLetter(firstName);
+  lastName = capitalizeFirstLetter(lastName);
+  console.log('1');
+
+  return User.findById(userId)
+    .then((user)=>{
+      if(user){
+        return User.findOneAndUpdate({_id: userId}, {firstName, lastName, email, cell}, {new: true});
+      }
+    })
+    .then(user => {
+      // The endpoint creates a new user in the database and responds with a 201 status, a location header and a JSON representation of the user without the password.
+      return res.status(201).location(`http://${req.headers.host}/users/${user.id}`).json(user);
+    })
+    .catch(err => {
+      if (err.code === 11000) {
+        err = {
+          message: 'That email is already taken, please use another!',
+          reason: 'ValidationError',
+          location: 'email',
+          status: 422
+        }; 
+      }
+      next(err);
+    });
+});
+
+
 module.exports = router;
