@@ -154,7 +154,7 @@ router.post('/', (req,res,next) => {
     .catch(err => {
       if (err.code === 11000) {
         err = {
-          message: 'The email already exists',
+          message: 'That email is already taken, please use another!',
           reason: 'ValidationError',
           location: 'email',
           status: 422

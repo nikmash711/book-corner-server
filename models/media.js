@@ -10,6 +10,7 @@ const mediaSchema = new mongoose.Schema({
   checkedOutBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User'},
   holdQueue: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
   dueDate: { type: String },
+  author: { type: String },
   renewals: { type: Number },
 });
 

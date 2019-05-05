@@ -48,7 +48,7 @@ router.get('/allMedia', (req, res, next) => {
     return next(err);
   }
 
-  return Media.find({}, {'title': 1, 'img': 1, 'available': 1, 'type': 1 })
+  return Media.find({}, {'title': 1, 'img': 1, 'available': 1, 'type': 1,  'author': 1 })
     .then(allMedia=>{
       res.json(allMedia);
     })
@@ -134,7 +134,7 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1, 'renewals':1, 'type': 1} })
+    .populate({ path: 'currentlyCheckedOut', select: {'title': 1, 'img': 1, 'dueDate':1, 'renewals':1, 'type': 1,  'author': 1} })
     .then(user=>{
       let currentlyCheckedOut = user.currentlyCheckedOut;
       console.log(currentlyCheckedOut);
@@ -156,7 +156,7 @@ router.get('/myMediaOnHold', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'mediaOnHold', select: {'title': 1, 'img': 1, 'type': 1} })
+    .populate({ path: 'mediaOnHold', select: {'title': 1, 'img': 1, 'type': 1,  'author': 1} })
     .then(user=>{
       let onHold = user.mediaOnHold || [];
       res.json(onHold);
@@ -214,7 +214,7 @@ router.get('/myOverdueMedia', (req, res, next) => {
   return User.findById(userId)
     .populate({ 
       path: 'currentlyCheckedOut', 
-      select: {'title': 1, 'img': 1, 'dueDate':1, 'type': 1},
+      select: {'title': 1, 'img': 1, 'dueDate':1, 'type': 1, 'author': 1},
       match: { dueDate: {$lte: dayNow, $ne:''} }
     })
     .then(user=>{
@@ -238,7 +238,7 @@ router.get('/myCheckoutHistory', (req, res, next) => {
   }
 
   return User.findById(userId)
-    .populate({ path: 'checkoutHistory', select: {'title': 1, 'img': 1, 'type': 1} })
+    .populate({ path: 'checkoutHistory', select: {'title': 1, 'img': 1, 'type': 1,  'author': 1} })
     .then(user=>{
       let checkoutHistory = user.checkoutHistory;
       res.json(checkoutHistory);
@@ -252,7 +252,8 @@ router.get('/myCheckoutHistory', (req, res, next) => {
 router.post('/', (req, res, next) => {
   const userId = req.user.id;
   const newMedia = req.body;
-  const file = Object.values(req.files);
+  console.log('NEW MEDIA IS', newMedia);
+  // const file = Object.values(req.files);
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     const err = new Error('The `id` is not a valid Mongoose id!');
@@ -269,14 +270,15 @@ router.post('/', (req, res, next) => {
         throw err;      
       }
       else{
-        return cloudinary.uploader.upload(file[0].path);
+        newMedia.available = true;
+        return Media.create(newMedia);
       }
     })
-    .then(cloudinaryResults => {
-      newMedia.img = cloudinaryResults.secure_url;
-      newMedia.available = true;
-      return Media.create(newMedia);
-    })
+    // .then(cloudinaryResults => {
+    //   newMedia.img = cloudinaryResults.secure_url;
+    //   newMedia.available = true;
+    //   return Media.create(newMedia);
+    // })
     .then(media=>{
       res.location(`http://${req.headers.host}/media/${media.id}`).status(201).json(media);
     })
@@ -541,7 +543,7 @@ router.put('/image/:mediaId', (req, res, next) => {
 router.put('/details/:mediaId', (req, res, next) => {
   const userId = req.user.id;
   const {mediaId} = req.params;
-  const {title, type} = req.body;
+  const {title, type, author} = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
     const err = new Error('The `id` is not a valid Mongoose id!');
@@ -557,7 +559,7 @@ router.put('/details/:mediaId', (req, res, next) => {
         throw err;      
       }
       else{
-        return Media.findOneAndUpdate({_id: mediaId}, {title, type}, {new: true});
+        return Media.findOneAndUpdate({_id: mediaId}, {title, type, author}, {new: true});
       }
     })
     .then((media)=>{
