@@ -504,46 +504,46 @@ router.put('/renew/:mediaId', (req, res, next) => {
 });
 
 /*PUT - edit image of media (admin) */
-router.put('/image/:mediaId', (req, res, next) => {
-  const userId = req.user.id;
-  const {mediaId} = req.params;
-  const file = Object.values(req.files);
-  let img;
+// router.put('/image/:mediaId', (req, res, next) => {
+//   const userId = req.user.id;
+//   const {mediaId} = req.params;
+//   const file = Object.values(req.files);
+//   let img;
 
-  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
-    const err = new Error('The `id` is not a valid Mongoose id!');
-    err.status = 400;
-    return next(err);
-  }
+//   if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
+//     const err = new Error('The `id` is not a valid Mongoose id!');
+//     err.status = 400;
+//     return next(err);
+//   }
 
-  return User.findOne({email: adminEmail})
-    .then((user)=>{
-      if(user._id.toString()!==userId){
-        const err = new Error('Unauthorized');
-        err.status = 400;
-        throw err;      
-      }
-      else{
-        return cloudinary.uploader.upload(file[0].path);
-      }
-    })
-    .then(cloudinaryResults => {
-      img = cloudinaryResults.secure_url;
-      return Media.findOneAndUpdate({_id: mediaId}, {img}, {new: true});
-    })
-    .then((media)=>{
-      res.status(200).json(media);
-    })
-    .catch(err=>{
-      return next(err);
-    });
-});
+//   return User.findOne({email: adminEmail})
+//     .then((user)=>{
+//       if(user._id.toString()!==userId){
+//         const err = new Error('Unauthorized');
+//         err.status = 400;
+//         throw err;      
+//       }
+//       else{
+//         return cloudinary.uploader.upload(file[0].path);
+//       }
+//     })
+//     .then(cloudinaryResults => {
+//       img = cloudinaryResults.secure_url;
+//       return Media.findOneAndUpdate({_id: mediaId}, {img}, {new: true});
+//     })
+//     .then((media)=>{
+//       res.status(200).json(media);
+//     })
+//     .catch(err=>{
+//       return next(err);
+//     });
+// });
 
 /*PUT - edit specific details of media (admin) */
-router.put('/details/:mediaId', (req, res, next) => {
+router.put('/:mediaId', (req, res, next) => {
   const userId = req.user.id;
   const {mediaId} = req.params;
-  const {title, type, author} = req.body;
+  const {title, type, author, img} = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(mediaId)) {
     const err = new Error('The `id` is not a valid Mongoose id!');
