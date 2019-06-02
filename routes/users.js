@@ -12,39 +12,38 @@ const Media = require('../models/media');
 const router = express.Router();
 
 passport.use(jwtStrategy);
-const options = {session: false, failWithError: true};
+const options = { session: false, failWithError: true };
 const jwtAuth = passport.authenticate('jwt', options);
 
-function missingField(requiredFields, body){
+function missingField(requiredFields, body) {
   return requiredFields.find(field => !(field in body));
 }
 
-function nonStringField(stringFields, body){
+function nonStringField(stringFields, body) {
   return stringFields.find(
     field => field in body && typeof body[field] !== 'string'
   );
 }
 
-function nonTrimmedField(explicityTrimmedFields, body){
-  console.log('IN FN ', explicityTrimmedFields, body);
+function nonTrimmedField(explicityTrimmedFields, body) {
   return explicityTrimmedFields.find(
     field => body[field].trim() !== body[field]
   );
 }
 
-function tooSmallField(sizedFields, body){
+function tooSmallField(sizedFields, body) {
   return Object.keys(sizedFields).find(
     field =>
       'min' in sizedFields[field] &&
-            body[field].trim().length < sizedFields[field].min
+      body[field].trim().length < sizedFields[field].min
   );
 }
 
-function tooLargeField(sizedFields, body){
+function tooLargeField(sizedFields, body) {
   return Object.keys(sizedFields).find(
     field =>
       'max' in sizedFields[field] &&
-            body[field].trim().length > sizedFields[field].max
+      body[field].trim().length > sizedFields[field].max
   );
 }
 
@@ -53,11 +52,10 @@ function capitalizeFirstLetter(str) {
 }
 
 /* CREATE A USER */
-router.post('/', (req,res,next) => {
-
+router.post('/', (req, res, next) => {
   //First do validation (dont trust client)
   const requiredFields = ['email', 'cell', 'password', 'firstName', 'lastName'];
-  let missing= missingField(requiredFields, req.body);
+  let missing = missingField(requiredFields, req.body);
 
   if (missing) {
     const err = {
@@ -69,8 +67,8 @@ router.post('/', (req,res,next) => {
     return next(err);
   }
 
-  const stringFields = ['email', 'cell',  'password', 'firstName', 'lastName'];
-  let notString= nonStringField(stringFields, req.body);
+  const stringFields = ['email', 'cell', 'password', 'firstName', 'lastName'];
+  let notString = nonStringField(stringFields, req.body);
 
   if (notString) {
     const err = {
@@ -113,26 +111,24 @@ router.post('/', (req,res,next) => {
 
   if (tooSmall || tooLarge) {
     const message = tooSmall
-      ? `Must be at least ${sizedFields[tooSmall]
-        .min} characters long`
-      : `Must be at most ${sizedFields[tooLarge]
-        .max} characters long`;
+      ? `Must be at least ${sizedFields[tooSmall].min} characters long`
+      : `Must be at most ${sizedFields[tooLarge].max} characters long`;
 
     const err = {
       message: message,
       reason: 'ValidationError',
       location: tooSmall || tooLarge,
       status: 422
-    };    
+    };
     return next(err);
   }
- 
+
   // // Email and password were validated as pre-trimmed, but we should trim the first and last name
-  let {firstName, lastName, email, password, cell} = req.body;
+  let { firstName, lastName, email, password, cell } = req.body;
   firstName = firstName.trim();
   lastName = lastName.trim();
 
-  //capitalize first letter of firt and first letter of last 
+  //capitalize first letter of firt and first letter of last
   firstName = capitalizeFirstLetter(firstName);
   lastName = capitalizeFirstLetter(lastName);
 
@@ -149,7 +145,10 @@ router.post('/', (req,res,next) => {
     })
     .then(user => {
       // The endpoint creates a new user in the database and responds with a 201 status, a location header and a JSON representation of the user without the password.
-      return res.status(201).location(`http://${req.headers.host}/users/${user.id}`).json(user);
+      return res
+        .status(201)
+        .location(`http://${req.headers.host}/users/${user.id}`)
+        .json(user);
     })
     .catch(err => {
       if (err.code === 11000) {
@@ -158,7 +157,7 @@ router.post('/', (req,res,next) => {
           reason: 'ValidationError',
           location: 'email',
           status: 422
-        }; 
+        };
       }
       next(err);
     });
@@ -176,36 +175,34 @@ router.get('/', jwtAuth, (req, res, next) => {
   }
 
   //make sure its admin
-  return User.findOne({email: 'jewishbookcorner@gmail.com'})
-    .then((user)=>{
-      if(user._id.toString()!==userId){
+  return User.findOne({ email: 'jewishbookcorner@gmail.com' })
+    .then(user => {
+      if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
-        throw err;      
-      }
-      else{
+        throw err;
+      } else {
         return User.find({})
           .populate('currentlyCheckedOut')
           .populate('mediaOnHold')
-          .populate('checkoutHistory')
-        ;
+          .populate('checkoutHistory');
       }
     })
-    .then(users=>{
+    .then(users => {
       res.json(users);
     })
-    .catch(err=>{
+    .catch(err => {
       next(err);
     });
 });
 
 /* EDIT A USER'S BASIC ACCOUNT */
-router.put('/account/:userId', jwtAuth, (req,res,next) => {
-  const {userId} = req.params;
+router.put('/account/:userId', jwtAuth, (req, res, next) => {
+  const { userId } = req.params;
 
   //First do validation (dont trust client)
   const requiredFields = ['email', 'cell', 'firstName', 'lastName'];
-  let missing= missingField(requiredFields, req.body);
+  let missing = missingField(requiredFields, req.body);
 
   if (missing) {
     const err = {
@@ -218,7 +215,7 @@ router.put('/account/:userId', jwtAuth, (req,res,next) => {
   }
 
   const stringFields = ['email', 'cell', 'firstName', 'lastName'];
-  let notString= nonStringField(stringFields, req.body);
+  let notString = nonStringField(stringFields, req.body);
 
   if (notString) {
     const err = {
@@ -248,7 +245,7 @@ router.put('/account/:userId', jwtAuth, (req,res,next) => {
   const sizedFields = {
     email: {
       min: 1
-    },
+    }
   };
 
   let tooSmall = tooSmallField(sizedFields, req.body);
@@ -256,39 +253,43 @@ router.put('/account/:userId', jwtAuth, (req,res,next) => {
 
   if (tooSmall || tooLarge) {
     const message = tooSmall
-      ? `Must be at least ${sizedFields[tooSmall]
-        .min} characters long`
-      : `Must be at most ${sizedFields[tooLarge]
-        .max} characters long`;
+      ? `Must be at least ${sizedFields[tooSmall].min} characters long`
+      : `Must be at most ${sizedFields[tooLarge].max} characters long`;
 
     const err = {
       message: message,
       reason: 'ValidationError',
       location: tooSmall || tooLarge,
       status: 422
-    };    
+    };
     return next(err);
   }
 
   // // Email and password were validated as pre-trimmed, but we should trim the first and last name
-  let {firstName, lastName, email, cell} = req.body;
+  let { firstName, lastName, email, cell } = req.body;
   firstName = firstName.trim();
   lastName = lastName.trim();
 
-  //capitalize first letter of firt and first letter of last 
+  //capitalize first letter of firt and first letter of last
   firstName = capitalizeFirstLetter(firstName);
   lastName = capitalizeFirstLetter(lastName);
-  console.log('1');
 
   return User.findById(userId)
-    .then((user)=>{
-      if(user){
-        return User.findOneAndUpdate({_id: userId}, {firstName, lastName, email, cell}, {new: true});
+    .then(user => {
+      if (user) {
+        return User.findOneAndUpdate(
+          { _id: userId },
+          { firstName, lastName, email, cell },
+          { new: true }
+        );
       }
     })
     .then(user => {
       // The endpoint creates a new user in the database and responds with a 201 status, a location header and a JSON representation of the user without the password.
-      return res.status(201).location(`http://${req.headers.host}/users/${user.id}`).json(user);
+      return res
+        .status(201)
+        .location(`http://${req.headers.host}/users/${user.id}`)
+        .json(user);
     })
     .catch(err => {
       if (err.code === 11000) {
@@ -297,15 +298,15 @@ router.put('/account/:userId', jwtAuth, (req,res,next) => {
           reason: 'ValidationError',
           location: 'email',
           status: 422
-        }; 
+        };
       }
       next(err);
     });
 });
 
 /* EDIT A USER's PASSWORD */
-router.put('/password/:userId', jwtAuth, (req,res,next) => {
-  const {userId} = req.params;
+router.put('/password/:userId', jwtAuth, (req, res, next) => {
+  const { userId } = req.params;
 
   //First do validation
   const requiredFields = ['oldPassword', 'newPassword'];
@@ -354,15 +355,13 @@ router.put('/password/:userId', jwtAuth, (req,res,next) => {
     }
   };
 
-  let tooSmall = tooSmallField(sizedFields, req.body) ;
-  let tooLarge = tooLargeField(sizedFields, req.body) ;
+  let tooSmall = tooSmallField(sizedFields, req.body);
+  let tooLarge = tooLargeField(sizedFields, req.body);
 
-  if ( tooSmall|| tooLarge) {
+  if (tooSmall || tooLarge) {
     const message = tooSmall
-      ? `Must be at least ${sizedFields[tooSmall]
-        .min} characters long`
-      : `Must be at most ${sizedFields[tooLarge]
-        .max} characters long`;
+      ? `Must be at least ${sizedFields[tooSmall].min} characters long`
+      : `Must be at most ${sizedFields[tooLarge].max} characters long`;
 
     const err = {
       message: message,
@@ -373,11 +372,11 @@ router.put('/password/:userId', jwtAuth, (req,res,next) => {
     return next(err);
   }
 
-  let {oldPassword, newPassword} = req.body;
+  let { oldPassword, newPassword } = req.body;
 
   let user;
 
-  User.find({_id: userId})
+  User.find({ _id: userId })
     .then(results => {
       user = results[0];
       if (!user) {
@@ -398,8 +397,8 @@ router.put('/password/:userId', jwtAuth, (req,res,next) => {
       return User.hashPassword(newPassword);
     })
     .then(digest => {
-      const updatedUser = {password: digest};
-      return User.findOneAndUpdate({_id: userId}, updatedUser, {new: true});
+      const updatedUser = { password: digest };
+      return User.findOneAndUpdate({ _id: userId }, updatedUser, { new: true });
     })
     .then(user => {
       return res.json(user);
