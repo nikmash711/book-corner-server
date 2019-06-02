@@ -610,7 +610,7 @@ router.put('/:mediaId', (req, res, next) => {
       } else {
         return Media.findOneAndUpdate(
           { _id: mediaId },
-          { title, type, author },
+          { title, type, author, img },
           { new: true }
         );
       }
