@@ -307,7 +307,8 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
   // We first need to check if the book is checked out by someone else (they can both click check out at same time if page isn't refreshed...)
   return Media.findById(mediaId)
     .then(media => {
-      if (!media.available) {
+      //dont do this if its being returned
+      if (!media.available && !available) {
         const err = new Error(
           'Sorry, this book is already checked out by someone else. Please refresh your page to get the latest catalog!'
         );
