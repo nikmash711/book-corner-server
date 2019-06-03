@@ -304,7 +304,19 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
     return next(err);
   }
 
-  return User.findById(userId)
+  // We first need to check if the book is checked out by someone else (they can both click check out at same time if page isn't refreshed...)
+  return Media.findById(mediaId)
+    .then(media => {
+      if (!media.available) {
+        const err = new Error(
+          'Sorry, this book is already checked out by someone else. Please refresh your page to get the latest catalog!'
+        );
+        err.status = 400;
+        return next(err);
+      } else {
+        return User.findById(userId);
+      }
+    })
     .then(user => {
       //if user is checking out media, need to update checkedOutBy and availability AFTER checking to make sure they haven't already checked out more than 2 types of media
       if (available === false) {
@@ -394,7 +406,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
         throw err;
       } else {
         let dueDate = moment()
-          .subtract(14, 'days')
+          .add(14, 'days')
           .calendar(null, {
             sameDay: 'MM/DD/YYYY',
             nextDay: 'MM/DD/YYYY',
