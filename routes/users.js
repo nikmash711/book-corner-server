@@ -15,6 +15,8 @@ passport.use(jwtStrategy);
 const options = { session: false, failWithError: true };
 const jwtAuth = passport.authenticate('jwt', options);
 
+const adminEmail = 'jewishbookcorner@gmail.com';
+
 function missingField(requiredFields, body) {
   return requiredFields.find(field => !(field in body));
 }
@@ -127,6 +129,7 @@ router.post('/', (req, res, next) => {
   let { firstName, lastName, email, password, cell } = req.body;
   firstName = firstName.trim();
   lastName = lastName.trim();
+  email = email.toLowerCase(); //we dont want emails to be case sensitive or else it can prevent login
 
   //capitalize first letter of firt and first letter of last
   firstName = capitalizeFirstLetter(firstName);
@@ -175,7 +178,7 @@ router.get('/', jwtAuth, (req, res, next) => {
   }
 
   //make sure its admin
-  return User.findOne({ email: 'jewishbookcorner@gmail.com' })
+  return User.findOne({ email: adminEmail })
     .then(user => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
