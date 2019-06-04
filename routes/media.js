@@ -255,6 +255,10 @@ router.get('/myCheckoutHistory', (req, res, next) => {
 router.post('/', (req, res, next) => {
   const userId = req.user.id;
   const newMedia = req.body;
+  if (!newMedia.img) {
+    newMedia.img =
+      'https://www.quantabiodesign.com/wp-content/uploads/No-Photo-Available.jpg';
+  }
   // console.log('NEW MEDIA IS', newMedia);
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -603,8 +607,12 @@ router.put('/renew/:mediaId', (req, res, next) => {
 router.put('/:mediaId', (req, res, next) => {
   const userId = req.user.id;
   const { mediaId } = req.params;
-  const { title, type, author, img } = req.body;
+  let { title, type, author, img } = req.body;
 
+  if (!img) {
+    img =
+      'https://www.quantabiodesign.com/wp-content/uploads/No-Photo-Available.jpg';
+  }
   if (
     !mongoose.Types.ObjectId.isValid(userId) ||
     !mongoose.Types.ObjectId.isValid(mediaId)
