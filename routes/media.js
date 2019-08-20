@@ -311,6 +311,14 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
   // We first need to check if the book is checked out by someone else (they can both click check out at same time if page isn't refreshed...)
   return Media.findById(mediaId)
     .then(media => {
+      // Also check that the media even exists (What if admin deleted it and user didnt refresh page)
+      if (!media) {
+        const err = new Error(
+          'Sorry, this media has been removed from the catalog. Please refresh your page for the latest catalog!'
+        );
+        err.status = 400;
+        return next(err);
+      }
       //dont do this if its being returned
       if (!media.available && !available) {
         const err = new Error(
