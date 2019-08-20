@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const cloudinary = require('cloudinary');
 const formData = require('express-form-data');
 const moment = require('moment');
+const Nexmo = require('nexmo');
 
 const User = require('../models/user');
 const Media = require('../models/media');
@@ -14,6 +15,11 @@ const router = express.Router();
 router.use(formData.parse());
 
 const adminEmail = 'jewishbookcorner@gmail.com';
+
+const nexmo = new Nexmo({
+  apiKey: process.env.NEXMO_API_KEY,
+  apiSecret: process.env.NEXMO_API_SECRET
+});
 
 const dayNow = moment().calendar(null, {
   sameDay: 'MM/DD/YYYY',
@@ -298,6 +304,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
   let media;
   let checkedOutBy;
   let promise;
+  let user;
 
   if (
     !mongoose.Types.ObjectId.isValid(userId) ||
@@ -310,7 +317,8 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
 
   // We first need to check if the book is checked out by someone else (they can both click check out at same time if page isn't refreshed...)
   return Media.findById(mediaId)
-    .then(media => {
+    .then(mediaResponse => {
+      media = mediaResponse;
       // Also check that the media even exists (What if admin deleted it and user didnt refresh page)
       if (!media) {
         const err = new Error(
@@ -330,9 +338,10 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
         return User.findById(userId);
       }
     })
-    .then(user => {
+    .then(userResponse => {
+      user = userResponse;
       //if user is checking out media, need to update checkedOutBy and availability AFTER checking to make sure they haven't already checked out more than 2 types of media
-      if (available === false) {
+      if (!available) {
         if (user.currentlyCheckedOut.length === 2) {
           const err = new Error(
             'Cannot checkout more than 2 types of media at a time'
@@ -386,6 +395,34 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
           removeFromCurrentlyCheckedOut,
           addToCheckedOutHistory
         ]);
+      }
+    })
+    .then(() => {
+      // Send Nexmo text if user is checking out
+      if (!available) {
+        nexmo.message.sendSms(
+          process.env.FROM_NUMBER,
+          process.env.TO_NUMBER,
+          `JewishBookCorner New Request: ${user.firstName} ${
+            user.lastName
+          } just checked out "${media.title}".`,
+          { type: 'unicode' },
+          (err, responseData) => {
+            if (err) {
+              console.log(err);
+            } else {
+              if (responseData.messages[0]['status'] === '0') {
+                console.log('Message sent successfully.');
+              } else {
+                console.log(
+                  `Message failed with error: ${
+                    responseData.messages[0]['error-text']
+                  }`
+                );
+              }
+            }
+          }
+        );
       }
     })
     .then(() => {
