@@ -16,15 +16,13 @@
 
 :white_check_mark: Users can edit their account information once logged in.
 
-:white_check_mark: Admin account can manage media ready for pickup, when media is returned, and add/edit new media to the catalog. Additionally, admin can browse through a user directory and media that is overdue.
+:white_check_mark: Admin account can manage media ready for pickup, when media is returned, and add/edit new media to the catalog. Additionally, admin can browse through a user directory and media that is overdue. Admin is also notified via text when a new request comes through.
 
 ## Future Improvements:
 
 :point_right: Allow users to rate media and display an average rating per media.
 
 :point_right: Improve process if user forgets login information.
-
-:point_right: Configure a [texting system](https://www.nexmo.com/pricing) such that the admin is notified via text message each time a user checks out media.
 
 ## Known Bugs/Edge Cases:
 
