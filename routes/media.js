@@ -316,128 +316,134 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
   }
 
   // We first need to check if the book is checked out by someone else (they can both click check out at same time if page isn't refreshed...)
-  return Media.findById(mediaId)
-    .then(mediaResponse => {
-      media = mediaResponse;
-      // Also check that the media even exists (What if admin deleted it and user didnt refresh page)
-      if (!media) {
-        const err = new Error(
-          'Sorry, this media has been removed from the catalog. Please refresh your page for the latest catalog!'
-        );
-        err.status = 400;
-        return next(err);
-      }
-      //dont do this if its being returned
-      if (!media.available && !available) {
-        const err = new Error(
-          'Sorry, this book is already checked out by someone else. Please refresh your page to get the latest catalog!'
-        );
-        err.status = 400;
-        return next(err);
-      } else {
-        return User.findById(userId);
-      }
-    })
-    .then(userResponse => {
-      user = userResponse;
-      //if user is checking out media, need to update checkedOutBy and availability AFTER checking to make sure they haven't already checked out more than 2 types of media
-      if (!available) {
-        if (user.currentlyCheckedOut.length === 2) {
+  return (
+    Media.findById(mediaId)
+      .then(mediaResponse => {
+        media = mediaResponse;
+        // Also check that the media even exists (What if admin deleted it and user didnt refresh page)
+        if (!media) {
           const err = new Error(
-            'Cannot checkout more than 2 types of media at a time'
+            'Sorry, this media has been removed from the catalog. Please refresh your page for the latest catalog!'
           );
           err.status = 400;
-          throw err;
+          return next(err);
+        }
+        //dont do this if its being returned
+        if (!media.available && !available) {
+          const err = new Error(
+            'Sorry, this book is already checked out by someone else. Please refresh your page to get the latest catalog!'
+          );
+          err.status = 400;
+          return next(err);
         } else {
-          checkedOutBy = userId;
+          return User.findById(userId);
+        }
+      })
+      .then(userResponse => {
+        user = userResponse;
+        //if user is checking out media, need to update checkedOutBy and availability AFTER checking to make sure they haven't already checked out more than 2 types of media
+        if (!available) {
+          if (user.currentlyCheckedOut.length === 2) {
+            const err = new Error(
+              'Cannot checkout more than 2 types of media at a time'
+            );
+            err.status = 400;
+            throw err;
+          } else {
+            checkedOutBy = userId;
+            promise = Media.findOneAndUpdate(
+              { _id: mediaId },
+              { available, checkedOutBy: checkedOutBy },
+              { new: true }
+            );
+          }
+        }
+        //if media is being returned, change availability, and remove checkedOutBy and dueDate
+        else {
           promise = Media.findOneAndUpdate(
             { _id: mediaId },
-            { available, checkedOutBy: checkedOutBy },
+            { available, $unset: { checkedOutBy: 1, dueDate: 1, renewals: 1 } },
             { new: true }
           );
         }
-      }
-      //if media is being returned, change availability, and remove checkedOutBy and dueDate
-      else {
-        promise = Media.findOneAndUpdate(
-          { _id: mediaId },
-          { available, $unset: { checkedOutBy: 1, dueDate: 1, renewals: 1 } },
-          { new: true }
-        );
-      }
-      return promise;
-    })
-    .then(updatedMedia => {
-      media = updatedMedia;
+        return promise;
+      })
+      .then(updatedMedia => {
+        media = updatedMedia;
 
-      //if checking out, add it to user's currentlyCheckedOut.
-      if (!available) {
-        return User.findOneAndUpdate(
-          { _id: userId },
-          { $push: { currentlyCheckedOut: mediaId } },
-          { new: true }
-        );
-      }
-      //if returning, remove it from user's currentlyCheckedOut and add it to checkoutHistory (if not already in there)
-      else {
-        // console.log('adding to checkout history');
-        let removeFromCurrentlyCheckedOut = User.findOneAndUpdate(
-          { _id: userId },
-          { $pull: { currentlyCheckedOut: mediaId } },
-          { new: true }
-        );
-        let addToCheckedOutHistory = User.findOneAndUpdate(
-          { _id: userId },
-          { $addToSet: { checkoutHistory: mediaId } },
-          { new: true }
-        );
-        return Promise.all([
-          removeFromCurrentlyCheckedOut,
-          addToCheckedOutHistory
-        ]);
-      }
-    })
-    .then(() => {
-      // Send Nexmo text if user is checking out
-      if (!available) {
-        nexmo.message.sendSms(
-          process.env.FROM_NUMBER,
-          process.env.TO_NUMBER,
-          `JewishBookCorner New Request: ${user.firstName} ${
-            user.lastName
-          } just checked out "${media.title}".`,
-          { type: 'unicode' },
-          (err, responseData) => {
-            if (err) {
-              console.log(err);
-            } else {
-              if (responseData.messages[0]['status'] === '0') {
-                console.log('Message sent successfully.');
-              } else {
-                console.log(
-                  `Message failed with error: ${
-                    responseData.messages[0]['error-text']
-                  }`
-                );
-              }
-            }
-          }
-        );
-      }
-    })
-    .then(() => {
-      res.status(200).json(media);
-    })
-    .catch(err => {
-      next(err);
-    });
+        //if checking out, add it to user's currentlyCheckedOut.
+        if (!available) {
+          return User.findOneAndUpdate(
+            { _id: userId },
+            { $push: { currentlyCheckedOut: mediaId } },
+            { new: true }
+          );
+        }
+        //if returning, remove it from user's currentlyCheckedOut and add it to checkoutHistory (if not already in there)
+        else {
+          // console.log('adding to checkout history');
+          let removeFromCurrentlyCheckedOut = User.findOneAndUpdate(
+            { _id: userId },
+            { $pull: { currentlyCheckedOut: mediaId } },
+            { new: true }
+          );
+          let addToCheckedOutHistory = User.findOneAndUpdate(
+            { _id: userId },
+            { $addToSet: { checkoutHistory: mediaId } },
+            { new: true }
+          );
+          return Promise.all([
+            removeFromCurrentlyCheckedOut,
+            addToCheckedOutHistory
+          ]);
+        }
+      })
+      // .then(() => {
+      //   // Send Nexmo text if user is checking out
+      //   if (!available) {
+      //     nexmo.message.sendSms(
+      //       process.env.FROM_NUMBER,
+      //       process.env.TO_ADMIN_NUMBER,
+      //       `JewishBookCorner New Request: ${user.firstName} ${
+      //         user.lastName
+      //       } just checked out "${
+      //         media.title
+      //       }". Please DO NOT respond to this message.`,
+      //       { type: 'unicode' },
+      //       (err, responseData) => {
+      //         if (err) {
+      //           console.log(err);
+      //         } else {
+      //           if (responseData.messages[0]['status'] === '0') {
+      //             console.log('Message sent successfully.');
+      //           } else {
+      //             console.log(
+      //               `Message failed with error: ${
+      //                 responseData.messages[0]['error-text']
+      //               }`
+      //             );
+      //           }
+      //         }
+      //       }
+      //     );
+      //   }
+      // })
+      .then(() => {
+        res.status(200).json(media);
+      })
+      .catch(err => {
+        next(err);
+      })
+  );
 });
 
-/*PUT - media ready for pickup: assign dueDate, clock starts ticking, handles holds (admin) */
+/*PUT - media ready for pickup: assign dueDate, clock starts ticking, handles holds (clicking return media will then call this fn on the FE if there's a hold queue) (admin) */
 router.put('/pickup/:mediaId', (req, res, next) => {
   const userId = req.user.id;
   const { mediaId } = req.params;
   const { holdQueue } = req.body;
+
+  let finalMedia;
 
   if (
     !mongoose.Types.ObjectId.isValid(userId) ||
@@ -466,6 +472,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
             sameElse: 'MM/DD/YYYY'
           });
         if (holdQueue) {
+          console.log('HOLDQUEUE', holdQueue);
           let nextUser = holdQueue[0].id;
           //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
           let promise1 = Media.findOneAndUpdate(
@@ -499,7 +506,53 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       }
     })
     .then(([media]) => {
-      res.status(200).json(media);
+      finalMedia = media;
+      return User.findOne({ _id: media.checkedOutBy });
+    })
+    .then(user => {
+      let pickUpDate = moment()
+        .add(2, 'days')
+        .calendar(null, {
+          sameDay: 'dddd, MMMM Do',
+          nextDay: 'dddd, MMMM Do',
+          nextWeek: 'dddd, MMMM Do',
+          lastDay: 'dddd, MMMM Do',
+          lastWeek: 'dddd, MMMM Do',
+          sameElse: 'dddd, MMMM Do'
+        });
+      let dueDate = moment(finalMedia.dueDate).calendar(null, {
+        sameDay: 'dddd, MMMM Do',
+        nextDay: 'dddd, MMMM Do',
+        nextWeek: 'dddd, MMMM Do',
+        lastDay: 'dddd, MMMM Do',
+        lastWeek: 'dddd, MMMM Do',
+        sameElse: 'dddd, MMMM Do'
+      });
+      // Send Nexmo text to user that it's ready for pickup
+      nexmo.message.sendSms(
+        process.env.FROM_NUMBER,
+        user.cell,
+        `From JewishBookCorner: Hi ${user.firstName}! The media "${
+          finalMedia.title
+        }" is ready for pickup. Please pick from the mailbox at __ by ${pickUpDate}. It is due back on ${dueDate}. You can always log into your account at http://jewishbookcorner.netlify.com to manage your checked out media, requests, holds, and renewals. \n DO NOT reply to this message.`,
+        { type: 'unicode' },
+        (err, responseData) => {
+          if (err) {
+            console.log(err);
+          } else {
+            if (responseData.messages[0]['status'] === '0') {
+              console.log('Message sent successfully.');
+            } else {
+              console.log(
+                `Message failed with error: ${
+                  responseData.messages[0]['error-text']
+                }`
+              );
+            }
+          }
+        }
+      );
+      res.status(200).json(finalMedia);
     })
     .catch(err => {
       return next(err);
