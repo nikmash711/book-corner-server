@@ -411,6 +411,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
           { type: 'unicode' },
           (err, responseData) => {
             if (err) {
+              console.log('error');
               console.log(err);
             } else {
               if (responseData.messages[0]['status'] === '0') {
