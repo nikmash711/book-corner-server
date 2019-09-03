@@ -400,14 +400,13 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
     .then(() => {
       // Send Nexmo text to admin if user is checking out
       if (!available) {
+        console.log('SENDING TEXT TO ADMIN');
         nexmo.message.sendSms(
           process.env.FROM_NUMBER,
           process.env.TO_ADMIN_NUMBER,
           `JewishBookCorner New Request: ${user.firstName} ${
             user.lastName
-          } just checked out "${
-            media.title
-          }". Please DO NOT respond to this message.`,
+          } just checked out **"${media.title}"**.`,
           { type: 'unicode' },
           (err, responseData) => {
             if (err) {
