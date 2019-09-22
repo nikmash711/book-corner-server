@@ -10,7 +10,7 @@
 
 :white_check_mark: Users have access to their checkout history, their media on hold, their media currently checked out, and any media that is overdue along with their balance.
 
-:white_check_mark: Users will receive an email when their media is ready to be picked up, at which point their two-week limit begins.
+:white_check_mark: Users will receive a text when their media is ready to be picked up, at which point their two-week limit begins. Users will also receive a text if their media is past overdue.
 
 :white_check_mark: Users can renew media one time for an additional two weeks.
 
@@ -24,7 +24,7 @@
 
 :point_right: Improve process if user forgets login information.
 
-:point_right: User and/or admin can cancel a request (if it isn't ready for pickup yet).
+:point_right: Pagination for catalog.
 
 ## Known Bugs/Edge Cases:
 
