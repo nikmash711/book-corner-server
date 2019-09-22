@@ -478,6 +478,8 @@ router.put('/pickup/:mediaId', (req, res, next) => {
             {
               available: false,
               checkedOutBy: nextUser,
+              dueDate: dueDate,
+              renewals: 0,
               $pull: { holdQueue: nextUser }
             },
             { new: true }
