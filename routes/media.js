@@ -670,6 +670,10 @@ router.put('/renew/:mediaId', (req, res, next) => {
         );
         err.status = 400;
         throw err;
+      } else if (calculateBalance([media])) {
+        const err = new Error('You cannot renew media that is overdue');
+        err.status = 400;
+        throw err;
       } else {
         let dueDate = moment()
           .add(14, 'days')
