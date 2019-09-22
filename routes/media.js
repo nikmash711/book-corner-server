@@ -141,7 +141,6 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
     })
     .then(user => {
       let currentlyCheckedOut = user.currentlyCheckedOut;
-      // console.log(currentlyCheckedOut);
       res.json(currentlyCheckedOut);
     })
     .catch(err => {
@@ -265,7 +264,6 @@ router.post('/', (req, res, next) => {
     newMedia.img =
       'https://www.quantabiodesign.com/wp-content/uploads/No-Photo-Available.jpg';
   }
-  // console.log('NEW MEDIA IS', newMedia);
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     const err = new Error('The `id` is not a valid Mongoose id!');
@@ -380,7 +378,6 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
       }
       //if returning, remove it from user's currentlyCheckedOut and add it to checkoutHistory (if not already in there)
       else {
-        // console.log('adding to checkout history');
         let removeFromCurrentlyCheckedOut = User.findOneAndUpdate(
           { _id: userId },
           { $pull: { currentlyCheckedOut: mediaId } },
@@ -400,7 +397,6 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
     .then(() => {
       // Send Nexmo text to admin if user is checking out
       if (!available) {
-        console.log('SENDING TEXT TO ADMIN');
         nexmo.message.sendSms(
           process.env.FROM_NUMBER,
           process.env.TO_ADMIN_NUMBER,
@@ -470,7 +466,6 @@ router.put('/pickup/:mediaId', (req, res, next) => {
             sameElse: 'MM/DD/YYYY'
           });
         if (holdQueue) {
-          console.log('HOLDQUEUE', holdQueue);
           let nextUser = holdQueue[0].id;
           //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
           let promise1 = Media.findOneAndUpdate(
@@ -520,7 +515,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
           lastWeek: 'dddd, MMMM Do',
           sameElse: 'dddd, MMMM Do'
         });
-      let dueDate = moment(finalMedia.dueDate).calendar(null, {
+      let dueDate = moment(finalMedia.dueDate, 'MM/DD/YYYY').calendar(null, {
         sameDay: 'dddd, MMMM Do',
         nextDay: 'dddd, MMMM Do',
         nextWeek: 'dddd, MMMM Do',
@@ -695,6 +690,82 @@ router.put('/renew/:mediaId', (req, res, next) => {
     })
     .then(media => {
       res.status(200).json(media);
+    })
+    .catch(err => {
+      return next(err);
+    });
+});
+
+/*PUT - send a reminder text for overdue media (admin) */
+router.put('/send-reminder/:mediaId', (req, res, next) => {
+  const userId = req.user.id;
+  const { mediaId } = req.params;
+  let media = {};
+  let checkedOutUser = {};
+
+  if (
+    !mongoose.Types.ObjectId.isValid(userId) ||
+    !mongoose.Types.ObjectId.isValid(mediaId)
+  ) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findOne({ email: adminEmail })
+    .then(user => {
+      if (user._id.toString() !== userId) {
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;
+      } else {
+        return Media.findById(mediaId);
+      }
+    })
+    .then(_media => {
+      media = _media;
+      return User.findOne({ _id: media.checkedOutBy });
+    })
+    .then(_user => {
+      checkedOutUser = _user;
+      moment('12-25-1995', 'MM-DD-YYYY');
+      let dueDate = moment(media.dueDate, 'MM/DD/YYYY').calendar(null, {
+        sameDay: 'dddd, MMMM Do',
+        nextDay: 'dddd, MMMM Do',
+        nextWeek: 'dddd, MMMM Do',
+        lastDay: 'dddd, MMMM Do',
+        lastWeek: 'dddd, MMMM Do',
+        sameElse: 'dddd, MMMM Do'
+      });
+      // Send Nexmo text to user that media is overdue and how much they owe.
+      nexmo.message.sendSms(
+        process.env.FROM_NUMBER,
+        checkedOutUser.cell,
+        `URGENT From JewishBookCorner: Hi ${
+          checkedOutUser.firstName
+        }! The media "${
+          media.title
+        }" is overdue. It was due back on ${dueDate}. Please return the media to the mailbox at __ ASAP and include a payment of $${calculateBalance(
+          [media]
+        )}.00. You can always log into your account at http://jewishbookcorner.netlify.com to manage your checked out media, requests, holds, and renewals. \n DO NOT reply to this message.`,
+        { type: 'unicode' },
+        (err, responseData) => {
+          if (err) {
+            console.log(err);
+          } else {
+            if (responseData.messages[0]['status'] === '0') {
+              console.log('Message sent successfully.');
+            } else {
+              console.log(
+                `Message failed with error: ${
+                  responseData.messages[0]['error-text']
+                }`
+              );
+            }
+          }
+        }
+      );
+      res.status(200).json();
     })
     .catch(err => {
       return next(err);
