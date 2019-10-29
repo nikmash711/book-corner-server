@@ -529,7 +529,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
         user.cell,
         `From JewishBookCorner: Hi ${user.firstName}! The media "${
           finalMedia.title
-        }" is ready for pickup. Please pick from the mailbox at __ by ${pickUpDate}. It is due back on ${dueDate}. You can always log into your account at http://jewishbookcorner.netlify.com to manage your checked out media, requests, holds, and renewals. \n DO NOT reply to this message.`,
+        }" is ready for pickup. Please pickup from the mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. It is due back on ${dueDate}. You can always log into your account at http://jewishbookcorner.netlify.com to manage your checked out media, requests, holds, and renewals. \n DO NOT reply to this message.`,
         { type: 'unicode' },
         (err, responseData) => {
           if (err) {
@@ -749,7 +749,7 @@ router.put('/send-reminder/:mediaId', (req, res, next) => {
           checkedOutUser.firstName
         }! The media "${
           media.title
-        }" is overdue. It was due back on ${dueDate}. Please return the media to the mailbox at __ ASAP and include a payment of $${calculateBalance(
+        }" is overdue. It was due back on ${dueDate}. Please return the media to the mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
           [media]
         )}.00. You can always log into your account at http://jewishbookcorner.netlify.com to manage your checked out media, requests, holds, and renewals. \n DO NOT reply to this message.`,
         { type: 'unicode' },
