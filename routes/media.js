@@ -21,14 +21,7 @@ const nexmo = new Nexmo({
   apiSecret: process.env.NEXMO_API_SECRET
 });
 
-const dayNow = moment().calendar(null, {
-  sameDay: 'MM/DD/YYYY',
-  nextDay: 'MM/DD/YYYY',
-  nextWeek: 'MM/DD/YYYY',
-  lastDay: 'MM/DD/YYYY',
-  lastWeek: 'MM/DD/YYYY',
-  sameElse: 'MM/DD/YYYY'
-});
+const dayNow = moment().format('MM/DD/YYYY');
 
 const calculateBalance = overdueMedia => {
   let sum = 0;
@@ -456,14 +449,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       } else {
         let dueDate = moment()
           .add(14, 'days')
-          .calendar(null, {
-            sameDay: 'MM/DD/YYYY',
-            nextDay: 'MM/DD/YYYY',
-            nextWeek: 'MM/DD/YYYY',
-            lastDay: 'MM/DD/YYYY',
-            lastWeek: 'MM/DD/YYYY',
-            sameElse: 'MM/DD/YYYY'
-          });
+          .format('MM/DD/YYYY');
         if (holdQueue) {
           let nextUser = holdQueue[0].id;
           //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
@@ -506,29 +492,17 @@ router.put('/pickup/:mediaId', (req, res, next) => {
     .then(user => {
       let pickUpDate = moment()
         .add(2, 'days')
-        .calendar(null, {
-          sameDay: 'dddd, MMMM Do',
-          nextDay: 'dddd, MMMM Do',
-          nextWeek: 'dddd, MMMM Do',
-          lastDay: 'dddd, MMMM Do',
-          lastWeek: 'dddd, MMMM Do',
-          sameElse: 'dddd, MMMM Do'
-        });
-      let dueDate = moment(finalMedia.dueDate, 'MM/DD/YYYY').calendar(null, {
-        sameDay: 'dddd, MMMM Do',
-        nextDay: 'dddd, MMMM Do',
-        nextWeek: 'dddd, MMMM Do',
-        lastDay: 'dddd, MMMM Do',
-        lastWeek: 'dddd, MMMM Do',
-        sameElse: 'dddd, MMMM Do'
-      });
+        .format('ddd, MMM Do');
+      let dueDate = moment(finalMedia.dueDate, 'MM/DD/YYYY').format(
+        'ddd, MMM Do'
+      );
       // Send Nexmo text to user that media is ready for pickup
       nexmo.message.sendSms(
         process.env.FROM_NUMBER,
         user.cell,
-        `From JewishBookCorner: Hi ${user.firstName}! The media "${
+        `JewishBookCorner: Hi ${user.firstName}! "${
           finalMedia.title
-        }" is ready for pickup. Please pickup from the mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. It is due back on ${dueDate}. You can always log into your account at http://jewishbookcorner.netlify.com to manage your checked out media, requests, holds, and renewals. \n DO NOT reply to this message.`,
+        }" is ready for pickup. \n Pickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \n Due back by ${dueDate}. \n You can always log into your account (jewishbookcorner.netlify.com) to manage requests, checkouts, and holds. DO NOT REPLY.`,
         (err, responseData) => {
           if (err) {
             console.log(err);
@@ -675,14 +649,7 @@ router.put('/renew/:mediaId', (req, res, next) => {
       } else {
         let dueDate = moment(media.dueDate, 'MM/DD/YYYY')
           .add(14, 'days')
-          .calendar(null, {
-            sameDay: 'MM/DD/YYYY',
-            nextDay: 'MM/DD/YYYY',
-            nextWeek: 'MM/DD/YYYY',
-            lastDay: 'MM/DD/YYYY',
-            lastWeek: 'MM/DD/YYYY',
-            sameElse: 'MM/DD/YYYY'
-          });
+          .format('MM/DD/YYYY');
         return Media.findOneAndUpdate(
           { _id: mediaId },
           { dueDate: dueDate, renewals: 1 },
@@ -730,26 +697,16 @@ router.put('/send-reminder/:mediaId', (req, res, next) => {
     })
     .then(_user => {
       checkedOutUser = _user;
-      moment('12-25-1995', 'MM-DD-YYYY');
-      let dueDate = moment(media.dueDate, 'MM/DD/YYYY').calendar(null, {
-        sameDay: 'dddd, MMMM Do',
-        nextDay: 'dddd, MMMM Do',
-        nextWeek: 'dddd, MMMM Do',
-        lastDay: 'dddd, MMMM Do',
-        lastWeek: 'dddd, MMMM Do',
-        sameElse: 'dddd, MMMM Do'
-      });
+      let dueDate = moment(media.dueDate, 'MM/DD/YYYY').format('ddd, MMM Do');
       // Send Nexmo text to user that media is overdue and how much they owe.
       nexmo.message.sendSms(
         process.env.FROM_NUMBER,
         checkedOutUser.cell,
-        `URGENT From JewishBookCorner: Hi ${
-          checkedOutUser.firstName
-        }! The media "${
+        `URGENT From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${
           media.title
-        }" is overdue. It was due back on ${dueDate}. Please return the media to the mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
+        }" is overdue. It was due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
           [media]
-        )}.00. You can always log into your account at http://jewishbookcorner.netlify.com to manage your checked out media, requests, holds, and renewals. \n DO NOT reply to this message.`,
+        )}.00. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`,
         (err, responseData) => {
           if (err) {
             console.log(err);
