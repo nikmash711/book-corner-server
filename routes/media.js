@@ -22,6 +22,9 @@ const nexmo = new Nexmo({
 });
 
 const dayNow = moment().format('MM/DD/YYYY');
+const oneDayFromNow = moment()
+  .add(1, 'days')
+  .format('MM/DD/YYYY');
 
 const calculateBalance = overdueMedia => {
   let sum = 0;
@@ -288,6 +291,86 @@ router.post('/', (req, res, next) => {
     });
 });
 
+/*POST - send a reminder text for overdue media, media due that day, or media due the next day (admin) */
+router.post('/send-reminders', (req, res, next) => {
+  const userId = req.user.id;
+  let allMedia = [];
+  let checkedOutUser = {};
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not a valid Mongoose id!');
+    err.status = 400;
+    return next(err);
+  }
+
+  return User.findOne({ email: adminEmail })
+    .then(user => {
+      if (user._id.toString() !== userId) {
+        const err = new Error('Unauthorized');
+        err.status = 400;
+        throw err;
+      } else {
+        return Media.find({
+          dueDate: { $lte: oneDayFromNow, $ne: '' }
+        }).populate('checkedOutBy');
+      }
+    })
+    .then(_allMedia => {
+      allMedia = _allMedia;
+      allMedia.map(media => {
+        checkedOutUser = media.checkedOutBy;
+
+        let now = moment(dayNow, 'MM/DD/YYYY');
+        let due = moment(media.dueDate, 'MM/DD/YYYY');
+        let diff = moment.duration(now.diff(due)).asDays();
+
+        let dueDate = moment(media.dueDate, 'MM/DD/YYYY').format('ddd, MMM Do');
+        let messageText = '';
+
+        if (diff <= 0) {
+          messageText = `REMINDER From JewishBookCorner: Hi ${
+            checkedOutUser.firstName
+          }, "${
+            media.title
+          }" is due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
+        } else {
+          messageText = `URGENT From JewishBookCorner: Hi ${
+            checkedOutUser.firstName
+          }, "${
+            media.title
+          }" is overdue. It was due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
+            [media]
+          )}.00. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
+        }
+        nexmo.message.sendSms(
+          process.env.FROM_NUMBER,
+          checkedOutUser.cell,
+          messageText,
+          (err, responseData) => {
+            if (err) {
+              console.log(err);
+            } else {
+              if (responseData.messages[0]['status'] === '0') {
+                console.log('Message sent successfully.');
+              } else {
+                console.log(
+                  `Message failed with error: ${
+                    responseData.messages[0]['error-text']
+                  }`
+                );
+              }
+            }
+          }
+        );
+      });
+
+      res.status(200).json(true);
+    })
+    .catch(err => {
+      return next(err);
+    });
+});
+
 /*PUT - checking out media, or returning it (all users) */
 router.put('/availability/:mediaId/:userId', (req, res, next) => {
   let { mediaId, userId } = req.params;
@@ -502,7 +585,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
         user.cell,
         `JewishBookCorner: Hi ${user.firstName}! "${
           finalMedia.title
-        }" is ready for pickup. \n Pickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \n Due back by ${dueDate}. \n You can always log into your account (jewishbookcorner.netlify.com) to manage requests, checkouts, and holds. DO NOT REPLY.`,
+        }" is ready for pickup. \nPickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \nDue back by ${dueDate}. \nYou can always log into your account (jewishbookcorner.netlify.com) to manage requests, checkouts, and holds. DO NOT REPLY.`,
         (err, responseData) => {
           if (err) {
             console.log(err);
@@ -659,71 +742,6 @@ router.put('/renew/:mediaId', (req, res, next) => {
     })
     .then(media => {
       res.status(200).json(media);
-    })
-    .catch(err => {
-      return next(err);
-    });
-});
-
-/*PUT - send a reminder text for overdue media (admin) */
-router.put('/send-reminder/:mediaId', (req, res, next) => {
-  const userId = req.user.id;
-  const { mediaId } = req.params;
-  let media = {};
-  let checkedOutUser = {};
-
-  if (
-    !mongoose.Types.ObjectId.isValid(userId) ||
-    !mongoose.Types.ObjectId.isValid(mediaId)
-  ) {
-    const err = new Error('The `id` is not a valid Mongoose id!');
-    err.status = 400;
-    return next(err);
-  }
-
-  return User.findOne({ email: adminEmail })
-    .then(user => {
-      if (user._id.toString() !== userId) {
-        const err = new Error('Unauthorized');
-        err.status = 400;
-        throw err;
-      } else {
-        return Media.findById(mediaId);
-      }
-    })
-    .then(_media => {
-      media = _media;
-      return User.findOne({ _id: media.checkedOutBy });
-    })
-    .then(_user => {
-      checkedOutUser = _user;
-      let dueDate = moment(media.dueDate, 'MM/DD/YYYY').format('ddd, MMM Do');
-      // Send Nexmo text to user that media is overdue and how much they owe.
-      nexmo.message.sendSms(
-        process.env.FROM_NUMBER,
-        checkedOutUser.cell,
-        `URGENT From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${
-          media.title
-        }" is overdue. It was due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
-          [media]
-        )}.00. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`,
-        (err, responseData) => {
-          if (err) {
-            console.log(err);
-          } else {
-            if (responseData.messages[0]['status'] === '0') {
-              console.log('Message sent successfully.');
-            } else {
-              console.log(
-                `Message failed with error: ${
-                  responseData.messages[0]['error-text']
-                }`
-              );
-            }
-          }
-        }
-      );
-      res.status(200).json();
     })
     .catch(err => {
       return next(err);
