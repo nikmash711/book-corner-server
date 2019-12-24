@@ -1,8 +1,8 @@
+/* global bugsnagClient*/
 'use strict';
 
 const express = require('express');
 const mongoose = require('mongoose');
-const cloudinary = require('cloudinary');
 const formData = require('express-form-data');
 const moment = require('moment');
 const Nexmo = require('nexmo');
@@ -13,6 +13,9 @@ const Media = require('../models/media');
 const router = express.Router();
 
 router.use(formData.parse());
+
+var bugsnag = require('@bugsnag/js');
+var bugsnagClient = bugsnag(process.env.BUGSNAG_API_KEY);
 
 const adminEmail = 'jewishbookcorner@gmail.com';
 
@@ -54,6 +57,9 @@ router.get('/allMedia', (req, res, next) => {
       res.json(allMedia);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting all media', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -85,6 +91,9 @@ router.get('/allCheckedOutMedia', (req, res, next) => {
       res.json(allCheckedOutMedia);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting all checked out media', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -116,6 +125,9 @@ router.get('/allRequests', (req, res, next) => {
       res.json(allCheckedOutMedia);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting all Requests', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -140,6 +152,9 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
       res.json(currentlyCheckedOut);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting all checked out media', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -164,6 +179,9 @@ router.get('/myMediaOnHold', (req, res, next) => {
       res.json(onHold);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting media on hold per user', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -196,6 +214,9 @@ router.get('/allOverdueMedia', (req, res, next) => {
       res.json(allOverDueMedia);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting all overdue media', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -224,6 +245,9 @@ router.get('/myOverdueMedia', (req, res, next) => {
       res.json({ overdueMedia, balance });
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting overdue media per user', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -248,6 +272,9 @@ router.get('/myCheckoutHistory', (req, res, next) => {
       res.json(checkoutHistory);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM getting checkout history per user', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -256,6 +283,7 @@ router.get('/myCheckoutHistory', (req, res, next) => {
 router.post('/', (req, res, next) => {
   const userId = req.user.id;
   const newMedia = req.body;
+
   if (!newMedia.img) {
     newMedia.img =
       'https://www.quantabiodesign.com/wp-content/uploads/No-Photo-Available.jpg';
@@ -280,6 +308,10 @@ router.post('/', (req, res, next) => {
       }
     })
     .then(media => {
+      bugsnagClient.notify('Created new media', {
+        metaData: { id: media.id, title: media.title, user: userId }
+      });
+
       res
         .location(`http://${req.headers.host}/media/${media.id}`)
         .status(201)
@@ -287,6 +319,9 @@ router.post('/', (req, res, next) => {
     })
 
     .catch(err => {
+      bugsnagClient.notify('PROBLEM creating media', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -328,11 +363,7 @@ router.post('/send-reminders', (req, res, next) => {
         let messageText = '';
 
         if (diff <= 0) {
-          messageText = `REMINDER From JewishBookCorner: Hi ${
-            checkedOutUser.firstName
-          }, "${
-            media.title
-          }" is due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
+          messageText = `REMINDER From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
         } else {
           messageText = `URGENT From JewishBookCorner: Hi ${
             checkedOutUser.firstName
@@ -354,9 +385,7 @@ router.post('/send-reminders', (req, res, next) => {
                 console.log('Message sent successfully.');
               } else {
                 console.log(
-                  `Message failed with error: ${
-                    responseData.messages[0]['error-text']
-                  }`
+                  `Message failed with error: ${responseData.messages[0]['error-text']}`
                 );
               }
             }
@@ -367,6 +396,9 @@ router.post('/send-reminders', (req, res, next) => {
       res.status(200).json(true);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM sending reminders', {
+        metaData: { user: userId }
+      });
       return next(err);
     });
 });
@@ -446,6 +478,16 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
 
       //if checking out, add it to user's currentlyCheckedOut.
       if (!available) {
+        bugsnagClient.notify('Media being checked out', {
+          metaData: {
+            mediaId: media.id,
+            title: media.title,
+            userFirstName: user.firstName,
+            userLastName: user.lastName,
+            userId: user.id
+          }
+        });
+
         return User.findOneAndUpdate(
           { _id: userId },
           { $push: { currentlyCheckedOut: mediaId } },
@@ -476,9 +518,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
         nexmo.message.sendSms(
           process.env.FROM_NUMBER,
           process.env.TO_ADMIN_NUMBER,
-          `JewishBookCorner New Request: ${user.firstName} ${
-            user.lastName
-          } just checked out **"${media.title}"**.`,
+          `JewishBookCorner New Request: ${user.firstName} ${user.lastName} just checked out **"${media.title}"**.`,
           (err, responseData) => {
             if (err) {
               console.log('error');
@@ -488,9 +528,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
                 console.log('Message sent successfully.');
               } else {
                 console.log(
-                  `Message failed with error: ${
-                    responseData.messages[0]['error-text']
-                  }`
+                  `Message failed with error: ${responseData.messages[0]['error-text']}`
                 );
               }
             }
@@ -502,6 +540,9 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
       res.status(200).json(media);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM checking out or returning media', {
+        metaData: { user: userId }
+      });
       next(err);
     });
 });
@@ -583,9 +624,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       nexmo.message.sendSms(
         process.env.FROM_NUMBER,
         user.cell,
-        `JewishBookCorner: Hi ${user.firstName}! "${
-          finalMedia.title
-        }" is ready for pickup. \nPickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \nDue back by ${dueDate}. \nYou can always log into your account (jewishbookcorner.netlify.com) to manage requests, checkouts, and holds. DO NOT REPLY.`,
+        `JewishBookCorner: Hi ${user.firstName}! "${finalMedia.title}" is ready for pickup. \nPickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \nDue back by ${dueDate}. \nYou can always log into your account (jewishbookcorner.netlify.com) to manage requests, checkouts, and holds. DO NOT REPLY.`,
         (err, responseData) => {
           if (err) {
             console.log(err);
@@ -594,9 +633,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
               console.log('Message sent successfully.');
             } else {
               console.log(
-                `Message failed with error: ${
-                  responseData.messages[0]['error-text']
-                }`
+                `Message failed with error: ${responseData.messages[0]['error-text']}`
               );
             }
           }
@@ -605,6 +642,9 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       res.status(200).json(finalMedia);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM making media ready for pickup', {
+        metaData: { user: userId, media: finalMedia.title }
+      });
       return next(err);
     });
 });
@@ -640,6 +680,9 @@ router.put('/hold/:mediaId/:action', (req, res, next) => {
         res.status(200).json(media);
       })
       .catch(err => {
+        bugsnagClient.notify('PROBLEM placing media on hold', {
+          metaData: { mediaId: mediaId, user: userId }
+        });
         return next(err);
       });
   } else {
@@ -682,9 +725,20 @@ router.put('/hold/:mediaId/:action', (req, res, next) => {
         return Promise.all([promise1, promise2]);
       })
       .then(([media]) => {
+        bugsnagClient.notify('Media placed on hold', {
+          metaData: {
+            mediaId: media.id,
+            title: media.title,
+            userId: userId
+          }
+        });
+
         res.status(200).json(media);
       })
       .catch(err => {
+        bugsnagClient.notify('PROBLEM placing media on hold', {
+          metaData: { mediaId: mediaId, user: userId }
+        });
         return next(err);
       });
   }
@@ -744,6 +798,9 @@ router.put('/renew/:mediaId', (req, res, next) => {
       res.status(200).json(media);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM renewing media', {
+        metaData: { mediaId: mediaId, user: userId }
+      });
       return next(err);
     });
 });
@@ -782,9 +839,20 @@ router.put('/:mediaId', (req, res, next) => {
       }
     })
     .then(media => {
+      bugsnagClient.notify('Media being edited', {
+        metaData: {
+          mediaId: media.id,
+          title: media.title,
+          userId: userId
+        }
+      });
+
       res.status(200).json(media);
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM editing media', {
+        metaData: { mediaId: mediaId, user: userId }
+      });
       return next(err);
     });
 });
@@ -830,10 +898,20 @@ router.delete('/:mediaId', (req, res, next) => {
         // if trying to delete something that no longer exists or never did
         return next();
       } else {
+        bugsnagClient.notify('Media being deleted', {
+          metaData: {
+            mediaId: media.id,
+            title: media.title,
+            userId: userId
+          }
+        });
         res.sendStatus(204);
       }
     })
     .catch(err => {
+      bugsnagClient.notify('PROBLEM deleting media', {
+        metaData: { mediaId: mediaId, user: userId }
+      });
       next(err);
     });
 });
