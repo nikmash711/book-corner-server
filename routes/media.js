@@ -346,7 +346,7 @@ router.post('/send-reminders', (req, res, next) => {
         throw err;
       } else {
         return Media.find({
-          dueDate: { $lte: oneDayFromNow, $ne: '' }
+          dueDate: { $exists: true }
         }).populate('checkedOutBy');
       }
     })
@@ -358,13 +358,31 @@ router.post('/send-reminders', (req, res, next) => {
         let now = moment(dayNow, 'MM/DD/YYYY');
         let due = moment(media.dueDate, 'MM/DD/YYYY');
         let diff = moment.duration(now.diff(due)).asDays();
-
         let dueDate = moment(media.dueDate, 'MM/DD/YYYY').format('ddd, MMM Do');
         let messageText = '';
 
-        if (diff <= 0) {
+        if (diff <= 0 && diff >= -1) {
           messageText = `REMINDER From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
-        } else {
+
+          nexmo.message.sendSms(
+            process.env.FROM_NUMBER,
+            checkedOutUser.cell,
+            messageText,
+            (err, responseData) => {
+              if (err) {
+                console.log(err);
+              } else {
+                if (responseData.messages[0]['status'] === '0') {
+                  console.log('Message sent successfully.');
+                } else {
+                  console.log(
+                    `Message failed with error: ${responseData.messages[0]['error-text']}`
+                  );
+                }
+              }
+            }
+          );
+        } else if (diff > 0) {
           messageText = `URGENT From JewishBookCorner: Hi ${
             checkedOutUser.firstName
           }, "${
@@ -372,25 +390,26 @@ router.post('/send-reminders', (req, res, next) => {
           }" is overdue. It was due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
             [media]
           )}.00. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
-        }
-        nexmo.message.sendSms(
-          process.env.FROM_NUMBER,
-          checkedOutUser.cell,
-          messageText,
-          (err, responseData) => {
-            if (err) {
-              console.log(err);
-            } else {
-              if (responseData.messages[0]['status'] === '0') {
-                console.log('Message sent successfully.');
+
+          nexmo.message.sendSms(
+            process.env.FROM_NUMBER,
+            checkedOutUser.cell,
+            messageText,
+            (err, responseData) => {
+              if (err) {
+                console.log(err);
               } else {
-                console.log(
-                  `Message failed with error: ${responseData.messages[0]['error-text']}`
-                );
+                if (responseData.messages[0]['status'] === '0') {
+                  console.log('Message sent successfully.');
+                } else {
+                  console.log(
+                    `Message failed with error: ${responseData.messages[0]['error-text']}`
+                  );
+                }
               }
             }
-          }
-        );
+          );
+        }
       });
 
       res.status(200).json(true);
