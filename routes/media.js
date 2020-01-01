@@ -634,7 +634,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
     })
     .then(user => {
       let pickUpDate = moment()
-        .add(2, 'days')
+        .add(1, 'days')
         .format('ddd, MMM Do');
       let dueDate = moment(finalMedia.dueDate, 'MM/DD/YYYY').format(
         'ddd, MMM Do'
