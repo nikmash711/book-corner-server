@@ -286,7 +286,7 @@ router.post('/', (req, res, next) => {
 
   if (!newMedia.img) {
     newMedia.img =
-      'https://www.quantabiodesign.com/wp-content/uploads/No-Photo-Available.jpg';
+      'https://lh3.googleusercontent.com/proxy/is2DD7a-hxGmUTX55NDk_fkpqHblnDFhk6sdXi0Z-wL4rnKEBpGFS8_H1W1TIowTf05ipbXKVri5gJtjzOteMcwE1JFTCJqQxMRFUGfrRWnhKYw';
   }
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -832,7 +832,7 @@ router.put('/:mediaId', (req, res, next) => {
 
   if (!img) {
     img =
-      'https://www.quantabiodesign.com/wp-content/uploads/No-Photo-Available.jpg';
+      'https://lh3.googleusercontent.com/proxy/is2DD7a-hxGmUTX55NDk_fkpqHblnDFhk6sdXi0Z-wL4rnKEBpGFS8_H1W1TIowTf05ipbXKVri5gJtjzOteMcwE1JFTCJqQxMRFUGfrRWnhKYw';
   }
   if (
     !mongoose.Types.ObjectId.isValid(userId) ||
