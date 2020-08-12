@@ -286,7 +286,7 @@ router.post('/', (req, res, next) => {
 
   if (!newMedia.img) {
     newMedia.img =
-      'https://lh3.googleusercontent.com/proxy/is2DD7a-hxGmUTX55NDk_fkpqHblnDFhk6sdXi0Z-wL4rnKEBpGFS8_H1W1TIowTf05ipbXKVri5gJtjzOteMcwE1JFTCJqQxMRFUGfrRWnhKYw';
+      'https://us.123rf.com/450wm/pavelstasevich/pavelstasevich1811/pavelstasevich181101065/112815953-stock-vector-no-image-available-icon-flat-vector.jpg?ver=6';
   }
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -832,7 +832,7 @@ router.put('/:mediaId', (req, res, next) => {
 
   if (!img) {
     img =
-      'https://lh3.googleusercontent.com/proxy/is2DD7a-hxGmUTX55NDk_fkpqHblnDFhk6sdXi0Z-wL4rnKEBpGFS8_H1W1TIowTf05ipbXKVri5gJtjzOteMcwE1JFTCJqQxMRFUGfrRWnhKYw';
+      'https://us.123rf.com/450wm/pavelstasevich/pavelstasevich1811/pavelstasevich181101065/112815953-stock-vector-no-image-available-icon-flat-vector.jpg?ver=6';
   }
   if (
     !mongoose.Types.ObjectId.isValid(userId) ||
