@@ -21,23 +21,20 @@ const adminEmail = 'jewishbookcorner@gmail.com';
 
 const nexmo = new Nexmo({
   apiKey: process.env.NEXMO_API_KEY,
-  apiSecret: process.env.NEXMO_API_SECRET
+  apiSecret: process.env.NEXMO_API_SECRET,
 });
 
-const dayNow = moment().format('MM/DD/YYYY');
-const oneDayFromNow = moment()
-  .add(1, 'days')
-  .format('MM/DD/YYYY');
+const dayNow = moment.utc().format('MM/DD/YYYY');
+const oneDayFromNow = moment.utc().add(1, 'days').format('MM/DD/YYYY');
 
-const calculateBalance = overdueMedia => {
+const calculateBalance = (overdueMedia) => {
   let sum = 0;
 
   for (let media of overdueMedia) {
-    console.log('test');
-    let now = moment(dayNow, 'MM/DD/YYYY');
-    let due = moment(media.dueDate, 'MM/DD/YYYY');
+    let now = moment.utc(dayNow, 'MM/DD/YYYY');
+    let due = moment.utc(media.dueDate, 'MM/DD/YYYY');
     //Difference in number of days
-    let diff = moment.duration(now.diff(due)).asDays();
+    let diff = moment.utc.duration(now.diff(due)).asDays();
     sum += diff;
     bugsnagClient.notify('debug', {
       metaData: {
@@ -64,12 +61,12 @@ router.get('/allMedia', (req, res, next) => {
   }
 
   return Media.find({}, { title: 1, img: 1, available: 1, type: 1, author: 1 })
-    .then(allMedia => {
+    .then((allMedia) => {
       res.json(allMedia);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting all media', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -87,7 +84,7 @@ router.get('/allCheckedOutMedia', (req, res, next) => {
 
   //make sure its admin
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
@@ -98,12 +95,12 @@ router.get('/allCheckedOutMedia', (req, res, next) => {
           .populate('holdQueue');
       }
     })
-    .then(allCheckedOutMedia => {
+    .then((allCheckedOutMedia) => {
       res.json(allCheckedOutMedia);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting all checked out media', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -121,7 +118,7 @@ router.get('/allRequests', (req, res, next) => {
 
   //make sure its admin
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
@@ -132,12 +129,12 @@ router.get('/allRequests', (req, res, next) => {
           .populate('holdQueue');
       }
     })
-    .then(allCheckedOutMedia => {
+    .then((allCheckedOutMedia) => {
       res.json(allCheckedOutMedia);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting all Requests', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -156,15 +153,15 @@ router.get('/myCheckedOutMedia', (req, res, next) => {
   return User.findById(userId)
     .populate({
       path: 'currentlyCheckedOut',
-      select: { title: 1, img: 1, dueDate: 1, renewals: 1, type: 1, author: 1 }
+      select: { title: 1, img: 1, dueDate: 1, renewals: 1, type: 1, author: 1 },
     })
-    .then(user => {
+    .then((user) => {
       let currentlyCheckedOut = user.currentlyCheckedOut;
       res.json(currentlyCheckedOut);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting all checked out media', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -183,15 +180,15 @@ router.get('/myMediaOnHold', (req, res, next) => {
   return User.findById(userId)
     .populate({
       path: 'mediaOnHold',
-      select: { title: 1, img: 1, type: 1, author: 1 }
+      select: { title: 1, img: 1, type: 1, author: 1 },
     })
-    .then(user => {
+    .then((user) => {
       let onHold = user.mediaOnHold || [];
       res.json(onHold);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting media on hold per user', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -209,7 +206,7 @@ router.get('/allOverdueMedia', (req, res, next) => {
 
   //make sure its admin
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
@@ -221,12 +218,12 @@ router.get('/allOverdueMedia', (req, res, next) => {
         );
       }
     })
-    .then(allOverDueMedia => {
+    .then((allOverDueMedia) => {
       res.json(allOverDueMedia);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting all overdue media', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -248,16 +245,16 @@ router.get('/myOverdueMedia', (req, res, next) => {
     .populate({
       path: 'currentlyCheckedOut',
       select: { title: 1, img: 1, dueDate: 1, type: 1, author: 1 },
-      match: { dueDate: { $lte: dayNow, $ne: '' } }
+      match: { dueDate: { $lte: dayNow, $ne: '' } },
     })
-    .then(user => {
+    .then((user) => {
       overdueMedia = user.currentlyCheckedOut;
       balance = calculateBalance(overdueMedia);
       res.json({ overdueMedia, balance });
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting overdue media per user', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -276,15 +273,15 @@ router.get('/myCheckoutHistory', (req, res, next) => {
   return User.findById(userId)
     .populate({
       path: 'checkoutHistory',
-      select: { title: 1, img: 1, type: 1, author: 1 }
+      select: { title: 1, img: 1, type: 1, author: 1 },
     })
-    .then(user => {
+    .then((user) => {
       let checkoutHistory = user.checkoutHistory;
       res.json(checkoutHistory);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM getting checkout history per user', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -308,7 +305,7 @@ router.post('/', (req, res, next) => {
 
   //make sure its admin
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
@@ -318,9 +315,9 @@ router.post('/', (req, res, next) => {
         return Media.create(newMedia);
       }
     })
-    .then(media => {
+    .then((media) => {
       bugsnagClient.notify('Created new media', {
-        metaData: { id: media.id, title: media.title, user: userId }
+        metaData: { id: media.id, title: media.title, user: userId },
       });
 
       res
@@ -329,9 +326,9 @@ router.post('/', (req, res, next) => {
         .json(media);
     })
 
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM creating media', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -350,20 +347,20 @@ router.post('/send-reminders', (req, res, next) => {
   }
 
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
         throw err;
       } else {
         return Media.find({
-          dueDate: { $exists: true }
+          dueDate: { $exists: true },
         }).populate('checkedOutBy');
       }
     })
-    .then(_allMedia => {
+    .then((_allMedia) => {
       allMedia = _allMedia;
-      allMedia.map(media => {
+      allMedia.map((media) => {
         checkedOutUser = media.checkedOutBy;
 
         let now = moment(dayNow, 'MM/DD/YYYY');
@@ -425,9 +422,9 @@ router.post('/send-reminders', (req, res, next) => {
 
       res.status(200).json(true);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM sending reminders', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       return next(err);
     });
@@ -453,7 +450,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
 
   // We first need to check if the book is checked out by someone else (they can both click check out at same time if page isn't refreshed...)
   return Media.findById(mediaId)
-    .then(mediaResponse => {
+    .then((mediaResponse) => {
       media = mediaResponse;
       // Also check that the media even exists (What if admin deleted it and user didnt refresh page)
       if (!media) {
@@ -474,7 +471,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
         return User.findById(userId);
       }
     })
-    .then(userResponse => {
+    .then((userResponse) => {
       user = userResponse;
       //if user is checking out media, need to update checkedOutBy and availability AFTER checking to make sure they haven't already checked out more than 2 types of media
       if (!available) {
@@ -503,7 +500,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
       }
       return promise;
     })
-    .then(updatedMedia => {
+    .then((updatedMedia) => {
       media = updatedMedia;
 
       //if checking out, add it to user's currentlyCheckedOut.
@@ -514,8 +511,8 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
             title: media.title,
             userFirstName: user.firstName,
             userLastName: user.lastName,
-            userId: user.id
-          }
+            userId: user.id,
+          },
         });
 
         return User.findOneAndUpdate(
@@ -538,7 +535,7 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
         );
         return Promise.all([
           removeFromCurrentlyCheckedOut,
-          addToCheckedOutHistory
+          addToCheckedOutHistory,
         ]);
       }
     })
@@ -569,9 +566,9 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
     .then(() => {
       res.status(200).json(media);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM checking out or returning media', {
-        metaData: { user: userId }
+        metaData: { user: userId },
       });
       next(err);
     });
@@ -595,15 +592,13 @@ router.put('/pickup/:mediaId', (req, res, next) => {
   }
 
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
         throw err;
       } else {
-        let dueDate = moment()
-          .add(14, 'days')
-          .format('MM/DD/YYYY');
+        let dueDate = moment().add(14, 'days').format('MM/DD/YYYY');
         if (holdQueue) {
           let nextUser = holdQueue[0].id;
           //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
@@ -614,7 +609,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
               checkedOutBy: nextUser,
               dueDate: dueDate,
               renewals: 0,
-              $pull: { holdQueue: nextUser }
+              $pull: { holdQueue: nextUser },
             },
             { new: true }
           );
@@ -623,7 +618,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
             { _id: nextUser },
             {
               $push: { currentlyCheckedOut: mediaId },
-              $pull: { mediaOnHold: mediaId }
+              $pull: { mediaOnHold: mediaId },
             },
             { new: true }
           );
@@ -634,7 +629,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
               { _id: mediaId },
               { $set: { dueDate: dueDate, renewals: 0 } },
               { new: true }
-            )
+            ),
           ]);
         }
       }
@@ -643,10 +638,8 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       finalMedia = media;
       return User.findOne({ _id: media.checkedOutBy });
     })
-    .then(user => {
-      let pickUpDate = moment()
-        .add(1, 'days')
-        .format('ddd, MMM Do');
+    .then((user) => {
+      let pickUpDate = moment().add(1, 'days').format('ddd, MMM Do');
       let dueDate = moment(finalMedia.dueDate, 'MM/DD/YYYY').format(
         'ddd, MMM Do'
       );
@@ -671,9 +664,9 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       );
       res.status(200).json(finalMedia);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM making media ready for pickup', {
-        metaData: { user: userId, media: finalMedia.title }
+        metaData: { user: userId, media: finalMedia.title },
       });
       return next(err);
     });
@@ -709,16 +702,16 @@ router.put('/hold/:mediaId/:action', (req, res, next) => {
       .then(([media]) => {
         res.status(200).json(media);
       })
-      .catch(err => {
+      .catch((err) => {
         bugsnagClient.notify('PROBLEM placing media on hold', {
-          metaData: { mediaId: mediaId, user: userId }
+          metaData: { mediaId: mediaId, user: userId },
         });
         return next(err);
       });
   } else {
     //make sure theyre not placing an item on hold thats available
     return Media.findById(mediaId)
-      .then(media => {
+      .then((media) => {
         if (media.available) {
           const err = new Error('You cannot place a hold on available media');
           err.status = 400;
@@ -726,13 +719,13 @@ router.put('/hold/:mediaId/:action', (req, res, next) => {
         }
         return User.findById(userId);
       })
-      .then(user => {
+      .then((user) => {
         //if this was found, that means they already checked it out or already placed a hold
         if (
           user.currentlyCheckedOut.find(
-            media => media.toString() === mediaId
+            (media) => media.toString() === mediaId
           ) ||
-          user.mediaOnHold.find(media => media.toString() === mediaId)
+          user.mediaOnHold.find((media) => media.toString() === mediaId)
         ) {
           const err = new Error(
             'You cannot place a hold on media that you have currently checked out'
@@ -759,15 +752,15 @@ router.put('/hold/:mediaId/:action', (req, res, next) => {
           metaData: {
             mediaId: media.id,
             title: media.title,
-            userId: userId
-          }
+            userId: userId,
+          },
         });
 
         res.status(200).json(media);
       })
-      .catch(err => {
+      .catch((err) => {
         bugsnagClient.notify('PROBLEM placing media on hold', {
-          metaData: { mediaId: mediaId, user: userId }
+          metaData: { mediaId: mediaId, user: userId },
         });
         return next(err);
       });
@@ -789,7 +782,7 @@ router.put('/renew/:mediaId', (req, res, next) => {
   }
 
   return Media.findById(mediaId)
-    .then(media => {
+    .then((media) => {
       if (media.available === true) {
         const err = new Error(
           'This media is not currently checked out and therefore cannot be renewed'
@@ -809,7 +802,7 @@ router.put('/renew/:mediaId', (req, res, next) => {
         );
         err.status = 400;
         throw err;
-      } else if (calculateBalance([media]) > 0) {
+      } else if (calculateBalance([media]) > 2) {
         const err = new Error('You cannot renew media that is overdue');
         err.status = 400;
         throw err;
@@ -824,12 +817,12 @@ router.put('/renew/:mediaId', (req, res, next) => {
         );
       }
     })
-    .then(media => {
+    .then((media) => {
       res.status(200).json(media);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM renewing media', {
-        metaData: { mediaId: mediaId, user: userId }
+        metaData: { mediaId: mediaId, user: userId },
       });
       return next(err);
     });
@@ -855,7 +848,7 @@ router.put('/:mediaId', (req, res, next) => {
   }
 
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
@@ -868,20 +861,20 @@ router.put('/:mediaId', (req, res, next) => {
         );
       }
     })
-    .then(media => {
+    .then((media) => {
       bugsnagClient.notify('Media being edited', {
         metaData: {
           mediaId: media.id,
           title: media.title,
-          userId: userId
-        }
+          userId: userId,
+        },
       });
 
       res.status(200).json(media);
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM editing media', {
-        metaData: { mediaId: mediaId, user: userId }
+        metaData: { mediaId: mediaId, user: userId },
       });
       return next(err);
     });
@@ -902,7 +895,7 @@ router.delete('/:mediaId', (req, res, next) => {
   }
 
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
@@ -911,7 +904,7 @@ router.delete('/:mediaId', (req, res, next) => {
         return Media.findById(mediaId);
       }
     })
-    .then(media => {
+    .then((media) => {
       //only allow deletion of media if it's not checked out
       if (media.available) {
         return Media.findOneAndDelete({ _id: mediaId });
@@ -923,7 +916,7 @@ router.delete('/:mediaId', (req, res, next) => {
         throw err;
       }
     })
-    .then(media => {
+    .then((media) => {
       if (!media) {
         // if trying to delete something that no longer exists or never did
         return next();
@@ -932,15 +925,15 @@ router.delete('/:mediaId', (req, res, next) => {
           metaData: {
             mediaId: media.id,
             title: media.title,
-            userId: userId
-          }
+            userId: userId,
+          },
         });
         res.sendStatus(204);
       }
     })
-    .catch(err => {
+    .catch((err) => {
       bugsnagClient.notify('PROBLEM deleting media', {
-        metaData: { mediaId: mediaId, user: userId }
+        metaData: { mediaId: mediaId, user: userId },
       });
       next(err);
     });
