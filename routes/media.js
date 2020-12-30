@@ -32,10 +32,14 @@ const calculateBalance = (overdueMedia) => {
 
   for (let media of overdueMedia) {
     let now = moment(dayNow, 'MM/DD/YYYY');
+    console.log('now', now);
     let due = moment(media.dueDate, 'MM/DD/YYYY');
+    console.log('due', due);
     //Difference in number of days
     let diff = moment.duration(now.diff(due)).asDays();
+    console.log('diff', diff);
     sum += diff;
+    console.log('sum', sum);
   }
   return sum;
 };
