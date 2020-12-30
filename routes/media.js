@@ -203,13 +203,14 @@ router.get('/allOverdueMedia', (req, res, next) => {
         throw err;
       } else {
         //find media who's due date is less than todays date
-        return Media.find({ dueDate: { $lte: dayNow, $ne: '' } }).populate(
-          'checkedOutBy'
-        );
+        return Media.find({ dueDate: { $ne: '' } }).populate('checkedOutBy');
       }
     })
     .then((allOverDueMedia) => {
-      res.json(allOverDueMedia);
+      let overdueMedia = allOverDueMedia.filter(
+        (media) => calculateBalance([media]) > 0
+      );
+      res.json(overdueMedia);
     })
     .catch((err) => {
       bugsnagClient.notify('PROBLEM getting all overdue media', {
@@ -235,10 +236,12 @@ router.get('/myOverdueMedia', (req, res, next) => {
     .populate({
       path: 'currentlyCheckedOut',
       select: { title: 1, img: 1, dueDate: 1, type: 1, author: 1 },
-      match: { dueDate: { $gte: dayNow, $ne: '' } },
+      match: { dueDate: { $ne: '' } },
     })
     .then((user) => {
-      overdueMedia = user.currentlyCheckedOut;
+      overdueMedia = user.currentlyCheckedOut.filter(
+        (media) => calculateBalance([media]) > 0
+      );
       balance = calculateBalance(overdueMedia);
       res.json({ overdueMedia, balance });
     })
