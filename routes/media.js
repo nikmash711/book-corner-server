@@ -36,16 +36,6 @@ const calculateBalance = (overdueMedia) => {
     //Difference in number of days
     let diff = moment.duration(now.diff(due)).asDays();
     sum += diff;
-    bugsnagClient.notify('debug', {
-      metaData: {
-        dueDate: media.dueDate,
-        dayNow: dayNow,
-        now: now,
-        due: due,
-        diff: diff,
-        sum: sum,
-      },
-    });
   }
   return sum;
 };
@@ -245,7 +235,7 @@ router.get('/myOverdueMedia', (req, res, next) => {
     .populate({
       path: 'currentlyCheckedOut',
       select: { title: 1, img: 1, dueDate: 1, type: 1, author: 1 },
-      match: { dueDate: { $lte: dayNow, $ne: '' } },
+      match: { dueDate: { $gte: dayNow, $ne: '' } },
     })
     .then((user) => {
       overdueMedia = user.currentlyCheckedOut;
