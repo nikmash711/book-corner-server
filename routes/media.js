@@ -24,17 +24,17 @@ const nexmo = new Nexmo({
   apiSecret: process.env.NEXMO_API_SECRET,
 });
 
-const dayNow = moment.utc().format('MM/DD/YYYY');
-const oneDayFromNow = moment.utc().add(1, 'days').format('MM/DD/YYYY');
+const dayNow = moment().format('MM/DD/YYYY');
+const oneDayFromNow = moment().add(1, 'days').format('MM/DD/YYYY');
 
 const calculateBalance = (overdueMedia) => {
   let sum = 0;
 
   for (let media of overdueMedia) {
-    let now = moment.utc(dayNow, 'MM/DD/YYYY');
-    let due = moment.utc(media.dueDate, 'MM/DD/YYYY');
+    let now = moment(dayNow, 'MM/DD/YYYY');
+    let due = moment(media.dueDate, 'MM/DD/YYYY');
     //Difference in number of days
-    let diff = moment.utc.duration(now.diff(due)).asDays();
+    let diff = moment.duration(now.diff(due)).asDays();
     sum += diff;
     bugsnagClient.notify('debug', {
       metaData: {
