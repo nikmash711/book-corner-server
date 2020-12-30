@@ -32,14 +32,20 @@ const calculateBalance = (overdueMedia) => {
 
   for (let media of overdueMedia) {
     let now = moment(dayNow, 'MM/DD/YYYY');
-    console.log('now', now);
     let due = moment(media.dueDate, 'MM/DD/YYYY');
-    console.log('due', due);
     //Difference in number of days
     let diff = moment.duration(now.diff(due)).asDays();
-    console.log('diff', diff);
     sum += diff;
-    console.log('sum', sum);
+    bugsnagClient.notify('debug', {
+      metaData: {
+        dueDate: media.dueDate,
+        dayNow: dayNow,
+        now: now,
+        due: due,
+        diff: diff,
+        sum: sum,
+      },
+    });
   }
   return sum;
 };
@@ -592,7 +598,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
         err.status = 400;
         throw err;
       } else {
-        let dueDate = moment().add(14, 'days').format('MM/DD/YYYY');
+        let dueDate = moment().add(0, 'days').format('MM/DD/YYYY');
         if (holdQueue) {
           let nextUser = holdQueue[0].id;
           //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
