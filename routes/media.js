@@ -598,7 +598,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
         err.status = 400;
         throw err;
       } else {
-        let dueDate = moment().add(0, 'days').format('MM/DD/YYYY');
+        let dueDate = moment().add(14, 'days').format('MM/DD/YYYY');
         if (holdQueue) {
           let nextUser = holdQueue[0].id;
           //change checkedoutby to the first in the hold queue, change available to false, and pull that user out of hold queue
