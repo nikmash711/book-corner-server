@@ -4,7 +4,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const formData = require('express-form-data');
-const moment = require('moment-timezone');
+const moment = require('moment');
 const Nexmo = require('nexmo');
 
 const User = require('../models/user');
