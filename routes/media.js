@@ -327,6 +327,10 @@ router.post('/', (req, res, next) => {
     });
 });
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /*POST - send a reminder text for overdue media, media due that day, or media due the next day (admin) */
 router.post('/send-reminders', (req, res, next) => {
   const userId = req.user.id;
@@ -356,7 +360,8 @@ router.post('/send-reminders', (req, res, next) => {
       bugsnagClient.notify('allMedia', {
         metaData: { allMedia },
       });
-      allMedia.map((media) => {
+      allMedia.map(async (media) => {
+        await sleep(1000);
         checkedOutUser = media.checkedOutBy;
         bugsnagClient.notify('checkedOutUser', {
           metaData: { checkedOutUser },
