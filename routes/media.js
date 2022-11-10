@@ -353,16 +353,23 @@ router.post('/send-reminders', (req, res, next) => {
     })
     .then((_allMedia) => {
       allMedia = _allMedia;
+      console.log('allMedia', allMedia)
       allMedia.map((media) => {
         checkedOutUser = media.checkedOutBy;
+        console.log('checkedOutUser', checkedOutUser)
 
         let now = moment(dayNow, 'MM/DD/YYYY');
+        console.log('now', now)
         let due = moment(media.dueDate, 'MM/DD/YYYY');
+        console.log('due', due)
         let diff = moment.duration(now.diff(due)).asDays();
+        console.log('diff',diff)
         let dueDate = moment(media.dueDate, 'MM/DD/YYYY').format('ddd, MMM Do');
+        console.log('dueDate', dueDate)
         let messageText = '';
 
         if (diff <= 0 && diff >= -1) {
+          console.log('The diff is diff <= 0 && diff >= -1');
           messageText = `REMINDER From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
 
           nexmo.message.sendSms(
@@ -371,7 +378,7 @@ router.post('/send-reminders', (req, res, next) => {
             messageText,
             (err, responseData) => {
               if (err) {
-                console.log(err);
+                console.log('Error sending text',err);
               } else {
                 if (responseData.messages[0]['status'] === '0') {
                   console.log('Message sent successfully.');
@@ -384,6 +391,7 @@ router.post('/send-reminders', (req, res, next) => {
             }
           );
         } else if (diff > 0) {
+          console.log('diff is greater than 0 (overdue)')
           messageText = `URGENT From JewishBookCorner: Hi ${
             checkedOutUser.firstName
           }, "${
@@ -398,7 +406,7 @@ router.post('/send-reminders', (req, res, next) => {
             messageText,
             (err, responseData) => {
               if (err) {
-                console.log(err);
+                console.log('error sending message',err);
               } else {
                 if (responseData.messages[0]['status'] === '0') {
                   console.log('Message sent successfully.');
