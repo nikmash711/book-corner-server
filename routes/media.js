@@ -391,34 +391,34 @@ router.post('/send-reminders', (req, res, next) => {
           if (diff <= 0 && diff >= -1) {
             console.log('The diff is diff <= 0 && diff >= -1');
             bugsnagClient.notify('The diff is diff <= 0 && diff >= -1');
-            messageText = `REMINDER From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
+            messageText = `REMINDER From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return to mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. DO NOT REPLY.`;
 
-            // nexmo.message.sendSms(
-            //   process.env.FROM_NUMBER,
-            //   checkedOutUser.cell,
-            //   messageText,
-            //   (err, responseData) => {
-            //     if (err) {
-            //       bugsnagClient.notify('Error sending text', {
-            //         metaData: { err },
-            //       });
-            //     } else {
-            //       if (responseData.messages[0]['status'] === '0') {
-            //         console.log('Message sent successfully.');
-            //         bugsnagClient.notify('Message sent successfully');
-            //       } else {
-            //         console.log(
-            //           `Message failed with error: ${responseData.messages[0]['error-text']}`
-            //         );
-            //         bugsnagClient.notify('Message failed with error', {
-            //           metaData: {
-            //             error: responseData.messages[0]['error-text'],
-            //           },
-            //         });
-            //       }
-            //     }
-            //   }
-            // );
+            nexmo.message.sendSms(
+              process.env.FROM_NUMBER,
+              checkedOutUser.cell,
+              messageText,
+              (err, responseData) => {
+                if (err) {
+                  bugsnagClient.notify('Error sending text', {
+                    metaData: { err },
+                  });
+                } else {
+                  if (responseData.messages[0]['status'] === '0') {
+                    console.log('Message sent successfully.');
+                    bugsnagClient.notify('Message sent successfully');
+                  } else {
+                    console.log(
+                      `Message failed with error: ${responseData.messages[0]['error-text']}`
+                    );
+                    bugsnagClient.notify('Message failed with error', {
+                      metaData: {
+                        error: responseData.messages[0]['error-text'],
+                      },
+                    });
+                  }
+                }
+              }
+            );
           } else if (diff > 0) {
             console.log('diff is greater than 0 (overdue)');
             bugsnagClient.notify('diff is greater than 0 (overdue)');
@@ -426,37 +426,37 @@ router.post('/send-reminders', (req, res, next) => {
               checkedOutUser.firstName
             }, "${
               media.title
-            }" is overdue. It was due back on ${dueDate}. Please return it to the mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
+            }" was due back on ${dueDate} and is overdue. Please return to mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
               [media]
-            )}.00. You can always log into your account (jewishbookcorner.netlify.com) to manage checkouts, requests, and holds. DO NOT REPLY.`;
+            )}.00. DO NOT REPLY.`;
 
-            // nexmo.message.sendSms(
-            //   process.env.FROM_NUMBER,
-            //   checkedOutUser.cell,
-            //   messageText,
-            //   (err, responseData) => {
-            //     if (err) {
-            //       console.log('error sending message', err);
-            //       bugsnagClient.notify('Error sending text', {
-            //         metaData: { err },
-            //       });
-            //     } else {
-            //       if (responseData.messages[0]['status'] === '0') {
-            //         console.log('Message sent successfully.');
-            //         bugsnagClient.notify('Message sent successfully');
-            //       } else {
-            //         console.log(
-            //           `Message failed with error: ${responseData.messages[0]['error-text']}`
-            //         );
-            //         bugsnagClient.notify('Message failed with error', {
-            //           metaData: {
-            //             error: responseData.messages[0]['error-text'],
-            //           },
-            //         });
-            //       }
-            //     }
-            //   }
-            // );
+            nexmo.message.sendSms(
+              process.env.FROM_NUMBER,
+              checkedOutUser.cell,
+              messageText,
+              (err, responseData) => {
+                if (err) {
+                  console.log('error sending message', err);
+                  bugsnagClient.notify('Error sending text', {
+                    metaData: { err },
+                  });
+                } else {
+                  if (responseData.messages[0]['status'] === '0') {
+                    console.log('Message sent successfully.');
+                    bugsnagClient.notify('Message sent successfully');
+                  } else {
+                    console.log(
+                      `Message failed with error: ${responseData.messages[0]['error-text']}`
+                    );
+                    bugsnagClient.notify('Message failed with error', {
+                      metaData: {
+                        error: responseData.messages[0]['error-text'],
+                      },
+                    });
+                  }
+                }
+              }
+            );
           }
         }, 1000 * index); // With each iteration, the delay increases
       });
@@ -583,25 +583,25 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
     .then(() => {
       // Send Nexmo text to admin if user is checking out
       if (!available) {
-        // nexmo.message.sendSms(
-        //   process.env.FROM_NUMBER,
-        //   process.env.TO_ADMIN_NUMBER,
-        //   `JewishBookCorner New Request: ${user.firstName} ${user.lastName} just checked out **"${media.title}"**.`,
-        //   (err, responseData) => {
-        //     if (err) {
-        //       console.log('error');
-        //       console.log(err);
-        //     } else {
-        //       if (responseData.messages[0]['status'] === '0') {
-        //         console.log('Message sent successfully.');
-        //       } else {
-        //         console.log(
-        //           `Message failed with error: ${responseData.messages[0]['error-text']}`
-        //         );
-        //       }
-        //     }
-        //   }
-        // );
+        nexmo.message.sendSms(
+          process.env.FROM_NUMBER,
+          process.env.TO_ADMIN_NUMBER,
+          `JewishBookCorner New Request: ${user.firstName} ${user.lastName} just checked out **"${media.title}"**.`,
+          (err, responseData) => {
+            if (err) {
+              console.log('error');
+              console.log(err);
+            } else {
+              if (responseData.messages[0]['status'] === '0') {
+                console.log('Message sent successfully.');
+              } else {
+                console.log(
+                  `Message failed with error: ${responseData.messages[0]['error-text']}`
+                );
+              }
+            }
+          }
+        );
       }
     })
     .then(() => {
@@ -685,24 +685,24 @@ router.put('/pickup/:mediaId', (req, res, next) => {
         'ddd, MMM Do'
       );
       // Send Nexmo text to user that media is ready for pickup
-      // nexmo.message.sendSms(
-      //   process.env.FROM_NUMBER,
-      //   user.cell,
-      //   `JewishBookCorner: Hi ${user.firstName}! "${finalMedia.title}" is ready for pickup. \nPickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \nDue back by ${dueDate}. \nYou can always log into your account (jewishbookcorner.netlify.com) to manage requests, checkouts, and holds. DO NOT REPLY.`,
-      //   (err, responseData) => {
-      //     if (err) {
-      //       console.log(err);
-      //     } else {
-      //       if (responseData.messages[0]['status'] === '0') {
-      //         console.log('Message sent successfully.');
-      //       } else {
-      //         console.log(
-      //           `Message failed with error: ${responseData.messages[0]['error-text']}`
-      //         );
-      //       }
-      //     }
-      //   }
-      // );
+      nexmo.message.sendSms(
+        process.env.FROM_NUMBER,
+        user.cell,
+        `JewishBookCorner: Hi ${user.firstName}! "${finalMedia.title}" is ready for pickup. \nPickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \nDue back by ${dueDate}. \n DO NOT REPLY.`,
+        (err, responseData) => {
+          if (err) {
+            console.log(err);
+          } else {
+            if (responseData.messages[0]['status'] === '0') {
+              console.log('Message sent successfully.');
+            } else {
+              console.log(
+                `Message failed with error: ${responseData.messages[0]['error-text']}`
+              );
+            }
+          }
+        }
+      );
       res.status(200).json(finalMedia);
     })
     .catch((err) => {
