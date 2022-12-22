@@ -391,7 +391,7 @@ router.post('/send-reminders', (req, res, next) => {
           if (diff <= 0 && diff >= -1) {
             console.log('The diff is diff <= 0 && diff >= -1');
             bugsnagClient.notify('The diff is diff <= 0 && diff >= -1');
-            messageText = `REMINDER From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return to mailbox at 18266 Palora St., Tarzana 91356 to avoid overdue fees. DO NOT REPLY.`;
+            messageText = `REMINDER From JewishBookCorner: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return to 18266 Palora St., Tarzana 91356 to avoid overdue fees. DO NOT REPLY.`;
 
             nexmo.message.sendSms(
               process.env.FROM_NUMBER,
@@ -426,7 +426,7 @@ router.post('/send-reminders', (req, res, next) => {
               checkedOutUser.firstName
             }, "${
               media.title
-            }" was due back on ${dueDate} and is overdue. Please return to mailbox at 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
+            }" was due back on ${dueDate} and is overdue. Please return to 18266 Palora St., Tarzana 91356 ASAP and include a payment of $${calculateBalance(
               [media]
             )}.00. DO NOT REPLY.`;
 
@@ -688,7 +688,7 @@ router.put('/pickup/:mediaId', (req, res, next) => {
       nexmo.message.sendSms(
         process.env.FROM_NUMBER,
         user.cell,
-        `JewishBookCorner: Hi ${user.firstName}! "${finalMedia.title}" is ready for pickup. \nPickup from mailbox at 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \nDue back by ${dueDate}. \n DO NOT REPLY.`,
+        `JewishBookCorner: Hi ${user.firstName}! "${finalMedia.title}" is ready for pickup. \nPickup from 18266 Palora St., Tarzana 91356 by ${pickUpDate}. \nDue back by ${dueDate}. \n DO NOT REPLY.`,
         (err, responseData) => {
           if (err) {
             console.log(err);
