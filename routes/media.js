@@ -382,14 +382,15 @@ router.post('/send-reminders', (req, res, next) => {
           let dueDate = moment(media.dueDate, 'MM/DD/YYYY').format(
             'ddd, MMM Do'
           );
-          console.log('dueDate', dueDate);
+          let dueDateWithoutDay = moment(media.dueDate, 'MM/DD/YYYY').format(
+            'MMM Do'
+          );
           bugsnagClient.notify('dueDate', {
             metaData: { dueDate },
           });
           let messageText = '';
 
           if (diff <= 0 && diff >= -1) {
-            console.log('The diff is diff <= 0 && diff >= -1');
             bugsnagClient.notify('The diff is diff <= 0 && diff >= -1');
             messageText = `JewishBookCorner REMINDER: Hi ${checkedOutUser.firstName}, "${media.title}" is due back on ${dueDate}. Please return to 18266 Palora St. to avoid overdue fees. DO NOT REPLY.`;
 
@@ -404,7 +405,6 @@ router.post('/send-reminders', (req, res, next) => {
                   });
                 } else {
                   if (responseData.messages[0]['status'] === '0') {
-                    console.log('Message sent successfully.');
                     bugsnagClient.notify('Message sent successfully');
                   } else {
                     console.log(
@@ -420,13 +420,12 @@ router.post('/send-reminders', (req, res, next) => {
               }
             );
           } else if (diff > 0) {
-            console.log('diff is greater than 0 (overdue)');
             bugsnagClient.notify('diff is greater than 0 (overdue)');
-            messageText = `JewishBookCorner URGENT: Hi ${
+            messageText = `JewishBookCorner OVERDUE: Hi ${
               checkedOutUser.firstName
             }, "${
               media.title
-            }" was due back on ${dueDate} and is overdue. Please return to 18266 Palora St. ASAP and include payment of $${calculateBalance(
+            }" was due back on ${dueDateWithoutDay}. Please return to 18266 Palora St. ASAP and include payment of $${calculateBalance(
               [media]
             )}.00. DO NOT REPLY.`;
 
@@ -442,7 +441,6 @@ router.post('/send-reminders', (req, res, next) => {
                   });
                 } else {
                   if (responseData.messages[0]['status'] === '0') {
-                    console.log('Message sent successfully.');
                     bugsnagClient.notify('Message sent successfully');
                   } else {
                     console.log(
