@@ -18,24 +18,24 @@ const jwtAuth = passport.authenticate('jwt', options);
 const adminEmail = 'jewishbookcorner@gmail.com';
 
 function missingField(requiredFields, body) {
-  return requiredFields.find(field => !(field in body));
+  return requiredFields.find((field) => !(field in body));
 }
 
 function nonStringField(stringFields, body) {
   return stringFields.find(
-    field => field in body && typeof body[field] !== 'string'
+    (field) => field in body && typeof body[field] !== 'string'
   );
 }
 
 function nonTrimmedField(explicityTrimmedFields, body) {
   return explicityTrimmedFields.find(
-    field => body[field].trim() !== body[field]
+    (field) => body[field].trim() !== body[field]
   );
 }
 
 function tooSmallField(sizedFields, body) {
   return Object.keys(sizedFields).find(
-    field =>
+    (field) =>
       'min' in sizedFields[field] &&
       body[field].trim().length < sizedFields[field].min
   );
@@ -43,7 +43,7 @@ function tooSmallField(sizedFields, body) {
 
 function tooLargeField(sizedFields, body) {
   return Object.keys(sizedFields).find(
-    field =>
+    (field) =>
       'max' in sizedFields[field] &&
       body[field].trim().length > sizedFields[field].max
   );
@@ -56,7 +56,14 @@ function capitalizeFirstLetter(str) {
 /* CREATE A USER */
 router.post('/', (req, res, next) => {
   //First do validation (dont trust client)
-  const requiredFields = ['email', 'cell', 'password', 'firstName', 'lastName'];
+  const requiredFields = [
+    'email',
+    'cell',
+    'password',
+    'firstName',
+    'lastName',
+    'location',
+  ];
   let missing = missingField(requiredFields, req.body);
 
   if (missing) {
@@ -64,12 +71,19 @@ router.post('/', (req, res, next) => {
       message: `Missing '${missing}' in request body`,
       reason: 'ValidationError',
       location: `${missing}`,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
 
-  const stringFields = ['email', 'cell', 'password', 'firstName', 'lastName'];
+  const stringFields = [
+    'email',
+    'cell',
+    'password',
+    'firstName',
+    'lastName',
+    'location',
+  ];
   let notString = nonStringField(stringFields, req.body);
 
   if (notString) {
@@ -77,7 +91,7 @@ router.post('/', (req, res, next) => {
       message: 'Incorrect field type: expected string',
       reason: 'ValidationError',
       location: notString,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -92,20 +106,20 @@ router.post('/', (req, res, next) => {
       message: 'Cannot start or end with whitespace',
       reason: 'ValidationError',
       location: notTrimmed,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
 
   const sizedFields = {
     email: {
-      min: 1
+      min: 1,
     },
     password: {
       min: 6,
       // bcrypt truncates after 72 characters, so let's not give the illusion of security by storing extra (unused) info
-      max: 72
-    }
+      max: 72,
+    },
   };
 
   let tooSmall = tooSmallField(sizedFields, req.body);
@@ -120,13 +134,13 @@ router.post('/', (req, res, next) => {
       message: message,
       reason: 'ValidationError',
       location: tooSmall || tooLarge,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
 
   // // Email and password were validated as pre-trimmed, but we should trim the first and last name
-  let { firstName, lastName, email, password, cell } = req.body;
+  let { firstName, lastName, email, password, cell, location } = req.body;
   firstName = firstName.trim();
   lastName = lastName.trim();
   email = email.toLowerCase(); //we dont want emails to be case sensitive or else it can prevent login
@@ -136,30 +150,31 @@ router.post('/', (req, res, next) => {
   lastName = capitalizeFirstLetter(lastName);
 
   return User.hashPassword(password)
-    .then(digest => {
+    .then((digest) => {
       const newUser = {
         email,
         cell,
         password: digest,
         firstName,
-        lastName
+        lastName,
+        location,
       };
       return User.create(newUser);
     })
-    .then(user => {
+    .then((user) => {
       // The endpoint creates a new user in the database and responds with a 201 status, a location header and a JSON representation of the user without the password.
       return res
         .status(201)
         .location(`http://${req.headers.host}/users/${user.id}`)
         .json(user);
     })
-    .catch(err => {
+    .catch((err) => {
       if (err.code === 11000) {
         err = {
           message: 'That email is already taken, please use another!',
           reason: 'ValidationError',
           location: 'email',
-          status: 422
+          status: 422,
         };
       }
       next(err);
@@ -179,7 +194,7 @@ router.get('/', jwtAuth, (req, res, next) => {
 
   //make sure its admin
   return User.findOne({ email: adminEmail })
-    .then(user => {
+    .then((user) => {
       if (user._id.toString() !== userId) {
         const err = new Error('Unauthorized');
         err.status = 400;
@@ -191,10 +206,10 @@ router.get('/', jwtAuth, (req, res, next) => {
           .populate('checkoutHistory');
       }
     })
-    .then(users => {
+    .then((users) => {
       res.json(users);
     })
-    .catch(err => {
+    .catch((err) => {
       next(err);
     });
 });
@@ -212,7 +227,7 @@ router.put('/account/:userId', jwtAuth, (req, res, next) => {
       message: `Missing '${missing}' in request body`,
       reason: 'ValidationError',
       location: `${missing}`,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -225,7 +240,7 @@ router.put('/account/:userId', jwtAuth, (req, res, next) => {
       message: 'Incorrect field type: expected string',
       reason: 'ValidationError',
       location: notString,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -240,15 +255,15 @@ router.put('/account/:userId', jwtAuth, (req, res, next) => {
       message: 'Cannot start or end with whitespace',
       reason: 'ValidationError',
       location: notTrimmed,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
 
   const sizedFields = {
     email: {
-      min: 1
-    }
+      min: 1,
+    },
   };
 
   let tooSmall = tooSmallField(sizedFields, req.body);
@@ -263,7 +278,7 @@ router.put('/account/:userId', jwtAuth, (req, res, next) => {
       message: message,
       reason: 'ValidationError',
       location: tooSmall || tooLarge,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -278,7 +293,7 @@ router.put('/account/:userId', jwtAuth, (req, res, next) => {
   lastName = capitalizeFirstLetter(lastName);
 
   return User.findById(userId)
-    .then(user => {
+    .then((user) => {
       if (user) {
         return User.findOneAndUpdate(
           { _id: userId },
@@ -287,20 +302,20 @@ router.put('/account/:userId', jwtAuth, (req, res, next) => {
         );
       }
     })
-    .then(user => {
+    .then((user) => {
       // The endpoint creates a new user in the database and responds with a 201 status, a location header and a JSON representation of the user without the password.
       return res
         .status(201)
         .location(`http://${req.headers.host}/users/${user.id}`)
         .json(user);
     })
-    .catch(err => {
+    .catch((err) => {
       if (err.code === 11000) {
         err = {
           message: 'That email is already taken, please use another!',
           reason: 'ValidationError',
           location: 'email',
-          status: 422
+          status: 422,
         };
       }
       next(err);
@@ -320,7 +335,7 @@ router.put('/password/:userId', jwtAuth, (req, res, next) => {
       message: `Missing '${missing}' in request body`,
       reason: 'ValidationError',
       location: `${missing}`,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -333,7 +348,7 @@ router.put('/password/:userId', jwtAuth, (req, res, next) => {
       message: 'Incorrect field type: expected string',
       reason: 'ValidationError',
       location: notString,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -346,7 +361,7 @@ router.put('/password/:userId', jwtAuth, (req, res, next) => {
       message: 'Cannot start or end with whitespace',
       reason: 'ValidationError',
       location: notTrimmed,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -354,8 +369,8 @@ router.put('/password/:userId', jwtAuth, (req, res, next) => {
   const sizedFields = {
     newPassword: {
       min: 6,
-      max: 72
-    }
+      max: 72,
+    },
   };
 
   let tooSmall = tooSmallField(sizedFields, req.body);
@@ -370,7 +385,7 @@ router.put('/password/:userId', jwtAuth, (req, res, next) => {
       message: message,
       reason: 'ValidationError',
       location: tooSmall || tooLarge,
-      status: 422
+      status: 422,
     };
     return next(err);
   }
@@ -380,33 +395,33 @@ router.put('/password/:userId', jwtAuth, (req, res, next) => {
   let user;
 
   User.find({ _id: userId })
-    .then(results => {
+    .then((results) => {
       user = results[0];
       if (!user) {
         return next();
       }
       return user.validatePassword(oldPassword);
     })
-    .then(isValid => {
+    .then((isValid) => {
       if (!isValid) {
         const err = {
           message: 'Incorrect old password',
           reason: 'ValidationError',
           location: 'oldPassword',
-          status: 401
+          status: 401,
         };
         return Promise.reject(err);
       }
       return User.hashPassword(newPassword);
     })
-    .then(digest => {
+    .then((digest) => {
       const updatedUser = { password: digest };
       return User.findOneAndUpdate({ _id: userId }, updatedUser, { new: true });
     })
-    .then(user => {
+    .then((user) => {
       return res.json(user);
     })
-    .catch(err => {
+    .catch((err) => {
       next(err);
     });
 });

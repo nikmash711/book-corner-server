@@ -584,7 +584,11 @@ router.put('/availability/:mediaId/:userId', (req, res, next) => {
         nexmo.message.sendSms(
           process.env.FROM_NUMBER,
           process.env.TO_ADMIN_NUMBER,
-          `JewishBookCorner New Request: ${user.firstName} ${user.lastName} just checked out **"${media.title}"**.`,
+          `JewishBookCorner New Request: ${user.firstName} ${
+            user.lastName
+          } just checked out **"${media.title}"**. Pickup will be from ${
+            user.location ?? 'Tarzana'
+          }`,
           (err, responseData) => {
             if (err) {
               console.log('error');
